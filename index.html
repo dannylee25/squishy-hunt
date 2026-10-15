@@ -110,6 +110,21 @@
   .belt { background:#fff6e4; }
   .river { background:#7ec8ea; border-color:#2a6496; }
   .belt button, .river button { position:absolute; top:28px; width:84px; height:84px; font-size:40px; padding:0; }
+  .xray-find { display:flex; align-items:center; justify-content:center; gap:14px; font-size:22px; font-weight:800; margin:6px 0; }
+  .xray-find b { width:96px; height:96px; display:flex; align-items:center; justify-content:center; font-size:64px; line-height:1; background:#fff; border:4px solid var(--ink); border-radius:20px; }
+  .xray { position:relative; height:210px; border:4px solid #1c2430; border-radius:16px; overflow:hidden; touch-action:manipulation; margin:8px 0;
+    background:linear-gradient(#2a3340 0 40px, #4a3b2a 40px 58px, #6e5638 58px 100%); }
+  .xray-glow { position:absolute; left:30%; width:40%; top:44px; bottom:0; z-index:1; pointer-events:none;
+    background:repeating-linear-gradient(180deg, rgba(110,255,170,.22) 0 8px, rgba(110,255,170,.05) 8px 16px); }
+  .xray-arch { position:absolute; left:30%; width:40%; top:6px; bottom:16px; z-index:4; pointer-events:none;
+    border:4px solid #c5d0dc; border-bottom:none; border-radius:16px 16px 0 0; box-shadow:inset 0 0 0 3px #1b2836; }
+  .xray-arch span { position:absolute; top:4px; left:0; right:0; text-align:center; color:#b7ffcf; font-size:15px; letter-spacing:2px; font-weight:900; }
+  .xray-case { position:absolute; top:68px; width:100px; height:100px; padding:0; border-radius:16px; border:3px solid var(--ink);
+    font-size:54px; line-height:1; z-index:3; display:flex; align-items:center; justify-content:center; }
+  .xray-case::before { content:''; position:absolute; top:-16px; left:50%; width:42px; height:18px; margin-left:-21px;
+    border:3px solid var(--ink); border-bottom:none; border-radius:10px 10px 0 0; background:inherit; }
+  .xray-case.scanning { background:#062015 !important; border-color:#7dffb0; box-shadow:0 0 0 4px rgba(80,255,150,.55), inset 0 0 16px rgba(80,255,150,.4); }
+  .xray-item { pointer-events:none; }
   .wanted { font-size:68px; text-align:center; line-height:1; margin:4px 0; }
   .rhythm { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
   .rhythm button { width:96px; height:96px; font-size:40px; }
@@ -2355,36 +2370,105 @@ function openPlanes() {
   trackMini(() => { alive = false; clearInterval(timer); });
 }
 function openCarousel() {
-  let alive = true, x = 0;
-  const box = el('div', {class:'skybox'});
-  const bags = ['👜','🎒','🧳','💖','💼','🎒'].map((label, i) => {
-    const d = el('div', {class:'mover'}, label);
-    d.style.top = '60px';
-    d.dataset.heart = i === 3 ? '1' : '0';
-    listenDown(d, () => {
-      if (!alive) return;
-      if (d.dataset.heart === '1') { alive = false; succeed(box, () => grantSquishy('rose', 'Darcey', 'The heart suitcase had a rose squishy inside!')); }
+  const pool = [
+    {id:'duck', icon:'🦆'},
+    {id:'ball', icon:'⚽'},
+    {id:'bear', icon:'🧸'},
+    {id:'star', icon:'⭐'},
+    {id:'shoe', icon:'👟'},
+    {id:'apple', icon:'🍎'}
+  ];
+  const colors = ['#c9843a', '#2c3e6b', '#8d3b4b'];
+  const need = 4;
+  let hits = 0, alive = true, x = 0, speed = 100, last = performance.now();
+  function shuffle(list) {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  let load = shuffle(pool).slice(0, 3);
+  let target = load[0];
+  const stage = el('div', {class:'xray'});
+  const find = el('div', {class:'xray-find'});
+  const wanted = el('b', {});
+  find.append('Find this', wanted);
+  const status = el('p', {}, '0 / ' + need);
+  const cases = load.map((item, i) => {
+    const b = el('button', {class:'xray-case'});
+    b.style.background = colors[i];
+    const glyph = el('span', {class:'xray-item'}, '');
+    b.append(glyph);
+    listenDown(b, e => {
+      if (e && e.cancelable) e.preventDefault();
+      if (e && e.stopPropagation) e.stopPropagation();
+      pick(i);
     });
-    box.append(d);
-    return d;
+    stage.append(b);
+    return b;
   });
-  let last = performance.now();
+  stage.append(el('div', {class:'xray-glow'}));
+  stage.append(el('div', {class:'xray-arch'}, el('span', {}, 'X-RAY')));
+  function showTarget() { wanted.textContent = target.icon; }
+  showTarget();
+  function inWindow(btn) {
+    const s = stage.getBoundingClientRect();
+    const r = btn.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    return cx >= s.left + s.width * 0.30 && cx <= s.left + s.width * 0.70;
+  }
+  function pick(i) {
+    if (!alive) return;
+    if (!inWindow(cases[i])) {
+      sfx('no');
+      status.textContent = 'Wait until that bag is in the scanner. ' + hits + ' / ' + need;
+      return;
+    }
+    if (load[i].id !== target.id) {
+      sfx('no');
+      status.textContent = 'Not that one. Look for the picture. ' + hits + ' / ' + need;
+      return;
+    }
+    hits++;
+    sfx('ok');
+    if (hits >= need) {
+      alive = false;
+      status.textContent = 'Got it!';
+      succeed(stage, () => grantSquishy('rose', 'Darcey', 'The X-ray found a rose squishy in the right suitcase!'));
+      return;
+    }
+    const caught = target.id;
+    const rest = pool.filter(p => p.id !== caught && !load.some(l => l.id === p.id));
+    load[i] = rest[Math.floor(Math.random() * rest.length)];
+    const choices = load.filter(l => l.id !== load[i].id);
+    target = choices[Math.floor(Math.random() * choices.length)];
+    showTarget();
+    speed = Math.min(160, speed + 16);
+    status.textContent = hits + ' / ' + need;
+  }
   function loop(now) {
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    x += dt * 80;
-    const w = box.clientWidth || 320;
-    bags.forEach((b, i) => {
-      const px = ((i * 90 + x) % (w + 80)) - 40;
-      b.style.left = px + 'px';
+    x += dt * speed;
+    const w = stage.clientWidth || 520;
+    const span = w + 140;
+    cases.forEach((b, i) => {
+      b.style.left = (((i * span / 3) + x) % span - 110) + 'px';
+      const scanning = inWindow(b);
+      b.classList.toggle('scanning', scanning);
+      b.firstChild.textContent = scanning ? load[i].icon : '';
     });
     requestAnimationFrame(loop);
   }
   showCard(card => {
-    card.append(el('h2', {}, 'Baggage belt'));
-    card.append(el('p', {}, 'Tap the suitcase with the heart.'));
-    card.append(box);
+    card.append(el('h2', {}, 'X-ray scanner'));
+    card.append(el('p', {}, 'Bags roll through the scanner. Tap the one that shows this picture.'));
+    card.append(find);
+    card.append(stage);
+    card.append(status);
     addBack(card);
   });
   const raf = requestAnimationFrame(loop);
@@ -3236,8 +3320,8 @@ function buildRooms() {
     talker('agent', 240, 250, 'adult', 'Agent', ['One card matches the real pass. The others have a sneaky sticker.', 'Then I can give you a teal squishy.'], {shirt:'#f4f4f4', pants:'#2c3e6b', hair:'#6b3a22'})
   ]);
   land('baggage', 'Baggage belt', '#e7eef8', [
-    station('belt', 520, 240, 'Belt', 'rose', openCarousel),
-    talker('porter', 220, 260, 'adult', 'Porter', ['Watch the belt and tap the suitcase with the heart.'], {shirt:'#3a6ad8', pants:'#243e86', hair:'#222', cap:'#243e86'})
+    station('belt', 520, 240, 'X-ray', 'rose', openCarousel),
+    talker('porter', 220, 260, 'adult', 'Porter', ['Suitcases roll through the scanner. Tap the bag whose X-ray matches the picture.'], {shirt:'#3a6ad8', pants:'#243e86', hair:'#222', cap:'#243e86'})
   ]);
   land('photo', 'Photo booth', '#fde8ef', [
     prop({
