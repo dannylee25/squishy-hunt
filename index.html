@@ -192,8 +192,8 @@ const KIDS = {
   finn: {name:'Finn', age:7, scale:0.92, hair:'#e25822', outfit:'#3ecf6e', shorts:'#245c9a', shoe:'#333', style:'buzz', blurb:''}
 };
 const PAIRS = [
-  {ids:['ava','axel'], label:'Ava & Axel', coat:'#7a4a28', coatDark:'#5c3518', hair:'#ffd24a', littleHair:'#ffe07a', little:'#f4f4f4', big:'#ff5a7a'},
-  {ids:['darcey','hallie'], label:'Darcey & Hallie', coat:'#2c3d78', coatDark:'#1c2858', hair:'#6b3a22', littleHair:'#6b3a22', little:'#ff7ab0', big:'#3a2a6a'}
+  {ids:['ava','axel'], label:'Ava & Axel', coat:'#7a4a28', coatDark:'#5c3518', topHair:'#ffe07a', topStyle:'buzz', lowHair:'#ffd24a', lowStyle:'pony', little:'#f4f4f4', big:'#ff5a7a'},
+  {ids:['darcey','hallie'], label:'Darcey & Hallie', coat:'#2c3d78', coatDark:'#1c2858', topHair:'#6b3a22', topStyle:'pigtails', lowHair:'#6b3a22', lowStyle:'pony', little:'#ff7ab0', big:'#3a2a6a'}
 ];
 const SKIN = '#ffc8a8';
 
@@ -511,37 +511,52 @@ function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader) {
     if (isLeader) drawStar(g, x, y - 82 * (k.scale || 1), 8, '#ffcf33');
   }
 }
+function drawStackFace(g, y, hair, style) {
+  g.fillStyle = SKIN;
+  g.beginPath(); g.arc(0, y, 12, 0, Math.PI * 2); fillStroke(g, SKIN);
+  g.fillStyle = hair;
+  if (style === 'buzz') {
+    g.beginPath(); g.arc(0, y - 2, 12, Math.PI, 0); g.fill();
+    g.fillStyle = SKIN;
+    g.beginPath(); g.arc(-12, y + 1, 2.6, 0, 7); g.fill();
+    g.beginPath(); g.arc(12, y + 1, 2.6, 0, 7); g.fill();
+  } else if (style === 'pigtails') {
+    g.beginPath(); g.arc(0, y - 3, 12, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+    g.beginPath(); g.arc(-15, y + 2, 5.5, 0, 7); g.fill();
+    g.beginPath(); g.arc(15, y + 2, 5.5, 0, 7); g.fill();
+    g.fillStyle = '#ff7ab0';
+    g.beginPath(); g.arc(-15, y + 2, 2, 0, 7); g.fill();
+    g.beginPath(); g.arc(15, y + 2, 2, 0, 7); g.fill();
+  } else {
+    g.beginPath(); g.arc(0, y - 3, 12, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+    g.beginPath(); g.ellipse(14, y + 8, 5, 10, 0.45, 0, 7); g.fill();
+    g.fillStyle = '#ff5a7a';
+    g.beginPath(); g.ellipse(10, y - 1, 3, 2, 0.4, 0, 7); g.fill();
+  }
+  g.fillStyle = '#3a2a22';
+  g.beginPath(); g.arc(-4, y, 1.4, 0, 7); g.arc(4, y, 1.4, 0, 7); g.fill();
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 1.4;
+  g.beginPath(); g.arc(0, y + 4, 3.6, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+}
 function drawCoatPerson(g, x, y, pair, bob) {
   g.save();
   g.translate(x, y + (bob || 0));
   g.fillStyle = 'rgba(0,0,0,.18)';
   g.beginPath(); g.ellipse(0, 2, 18, 6, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = pair.little;
-  roundRect(g, -24, -48, 10, 6, 2); g.fill();
-  roundRect(g, 14, -48, 10, 6, 2); g.fill();
-  roundRect(g, -20, -98, 40, 90, 12);
+  g.fillStyle = pair.big;
+  roundRect(g, -16, -16, 12, 8, 2); g.fill();
+  roundRect(g, 4, -16, 12, 8, 2); g.fill();
+  roundRect(g, -22, -108, 44, 96, 12);
   fillStroke(g, pair.coat);
   g.fillStyle = pair.coatDark;
-  roundRect(g, -12, -78, 24, 10, 3); g.fill();
-  g.fillStyle = pair.big;
-  roundRect(g, -16, -14, 12, 8, 2); g.fill();
-  roundRect(g, 4, -14, 12, 8, 2); g.fill();
-  g.beginPath(); g.arc(0, -110, 13, 0, Math.PI * 2); fillStroke(g, SKIN);
-  g.fillStyle = pair.hair;
-  g.beginPath(); g.arc(0, -114, 13, Math.PI, 0); g.fill();
-  g.beginPath(); g.ellipse(14, -100, 5, 11, 0.4, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#3a2a22';
-  g.beginPath(); g.arc(-4, -110, 1.5, 0, 7); g.arc(4, -110, 1.5, 0, 7); g.fill();
-  g.strokeStyle = '#3a2a22'; g.lineWidth = 1.5;
-  g.beginPath(); g.arc(0, -106, 4, 0.2, 0.8 * Math.PI); g.stroke();
-  g.fillStyle = SKIN;
-  g.beginPath(); g.arc(22, -70, 9, 0, Math.PI * 2); fillStroke(g, SKIN);
-  g.fillStyle = pair.littleHair || pair.hair;
-  g.beginPath(); g.arc(22, -74, 9, Math.PI * 1.05, Math.PI * 1.95); g.fill();
-  g.fillStyle = '#3a2a22';
-  g.beginPath(); g.arc(19, -70, 1.1, 0, 7); g.arc(25, -70, 1.1, 0, 7); g.fill();
+  roundRect(g, -14, -78, 28, 12, 3); g.fill();
+  drawStackFace(g, -72, pair.lowHair, pair.lowStyle);
+  g.fillStyle = pair.little;
+  roundRect(g, -20, -118, 10, 6, 2); g.fill();
+  roundRect(g, 10, -118, 10, 6, 2); g.fill();
+  drawStackFace(g, -146, pair.topHair, pair.topStyle);
   g.restore();
-  drawLabel(g, x, y - 136, pair.label);
+  drawLabel(g, x, y - 174, pair.label);
 }
 function drawAdult(g, x, y, opt) {
   g.save();
@@ -1109,7 +1124,7 @@ function openSelect() {
       const box = el('button', {class:'char'});
       box.append(portrait(id, true));
       box.append(el('h3', {}, KIDS[id].name));
-      box.append(el('p', {}, KIDS[id].blurb));
+      box.append(el('p', {}, 'Age ' + KIDS[id].age));
       box.addEventListener('click', () => begin(id));
       faces.append(box);
     });
@@ -2095,18 +2110,25 @@ function trySand() {
   openDig();
 }
 function trySecurity() {
-  if (state.flags.securityPassed) { enter('concourse', 'security'); return; }
+  if (state.flags.securityPassed) {
+    say([{name:'Guard', text:'Those coats already came through the scanner. It only works once.'}]);
+    return;
+  }
   if (!state.flags.disguised) {
-    say([{name:'Guard', text:'Hello! This arch is for grown-ups. I can see small knees. The photo booth and the big coats might help.'}]);
+    say([{name:'Guard', text:'Hello! The scanner is for grown-ups. I can see small knees. The photo booth and the big coats might help.'}]);
     return;
   }
   state.flags.securityPassed = true;
+  state.px = 700;
+  state.py = 470;
+  state.facing = 'right';
+  resetTrail();
   save();
   sfx('ok');
   say([
     {name:'Guard', text:'Good afternoon. What tall coats. Please step through. Have a lovely flight.'},
-    {name:'Hallie', text:'Hee hee. It worked!'}
-  ], () => enter('concourse', 'security'));
+    {name:'Hallie', text:'Hee hee. Axel is on Ava\'s shoulders, and I am on Darcey\'s. It worked!'}
+  ]);
 }
 function tryBoard() {
   if (!mexicoReady()) {
@@ -2676,7 +2698,12 @@ function buildRooms() {
     depEnts.push(door('to-' + id, x, 120, label, id, 'default'));
     depSpawns[id] = {x, y:210};
   });
-  depEnts.push(door('to-sec', 830, 300, 'Security', 'security', 'default'));
+  depEnts.push(prop({
+    id:'to-sec', x:830, y:300, to:'security', spawn:'default', range:74,
+    prompt(){ return 'Security'; },
+    use(){ enter('security', state.flags.securityPassed ? 'airside' : 'default'); },
+    draw(g){ drawDoor(g, 830, 300, 'Security'); }
+  }));
   depSpawns.security = {x:760, y:360};
   add(R('departures', 'Departures', {floor:'#d7e3f5', level:3, spawns:depSpawns, entities:depEnts}));
 
@@ -2709,29 +2736,110 @@ function buildRooms() {
     talker('cam', 220, 260, 'adult', 'Cam', ['Little ones on shoulders. One coat for each pair.', 'Then you look tall enough for security.'], {shirt:'#333', pants:'#333', hair:'#222'})
   ]);
 
-  add(R('security', 'Security', {
+  add(R('security', 'Airport', {
     floor:'#d5ddec', level:3,
-    spawns:{default:{x:420, y:340}},
+    spawns:{default:{x:280, y:400}, airside:{x:700, y:470}, security:{x:700, y:470}},
+    paint(g){
+      g.fillStyle = '#c5cedc';
+      g.fillRect(0, 0, 430, 540);
+      g.fillStyle = '#e7eef8';
+      g.fillRect(500, 0, 460, 540);
+      g.fillStyle = '#9aa4b5';
+      g.fillRect(430, 0, 70, 190);
+      g.fillRect(430, 360, 70, 180);
+      g.strokeStyle = '#5c6778';
+      g.lineWidth = 8;
+      g.strokeRect(438, 188, 54, 170);
+      g.fillStyle = '#dfe7f2';
+      g.fillRect(448, 210, 34, 28);
+      g.fillStyle = '#3a2a22';
+      g.font = '700 12px Trebuchet MS, sans-serif';
+      g.textAlign = 'center';
+      g.fillText('SCAN', 465, 228);
+      g.fillStyle = '#8a93a3';
+      roundRect(g, 70, 150, 150, 70, 8); g.fill();
+      g.fillStyle = '#222';
+      g.fillRect(90, 168, 110, 18);
+      g.fillStyle = '#c9d2e0';
+      g.fillRect(60, 188, 40, 16);
+      g.fillRect(190, 188, 50, 16);
+      g.fillStyle = '#d7deea';
+      for (let i = 0; i < 3; i++) { roundRect(g, 250, 160 + i * 16, 36, 12, 2); g.fill(); }
+      g.strokeStyle = '#31415f';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(40, 250); g.lineTo(40, 210); g.lineTo(230, 210); g.lineTo(230, 250);
+      g.stroke();
+      g.fillStyle = '#31415f';
+      [[40, 250], [230, 250]].forEach(p => { g.beginPath(); g.arc(p[0], p[1], 6, 0, 7); g.fill(); });
+      drawLabel(g, 150, 120, 'Security');
+      g.fillStyle = '#9fd4ff';
+      roundRect(g, 560, 28, 360, 130, 10); g.fill();
+      g.strokeStyle = '#f4f7fb'; g.lineWidth = 6;
+      g.strokeRect(572, 40, 336, 106);
+      g.fillStyle = '#fff';
+      g.strokeStyle = '#3a2a22';
+      g.lineWidth = 2;
+      roundRect(g, 660, 86, 180, 26, 12); g.fill(); g.stroke();
+      g.beginPath(); g.moveTo(820, 86); g.lineTo(870, 52); g.lineTo(820, 70); g.closePath(); g.fill(); g.stroke();
+      g.beginPath(); g.moveTo(740, 100); g.lineTo(700, 124); g.lineTo(800, 108); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle = '#3a7eea';
+      for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(690 + i * 22, 98, 4, 0, 7); g.fill(); }
+      g.fillStyle = '#e23b3b';
+      g.fillRect(660, 96, 180, 5);
+      g.fillStyle = '#2f6fed';
+      for (let i = 0; i < 5; i++) {
+        roundRect(g, 600 + i * 58, 200, 48, 28, 6); g.fill();
+        g.fillStyle = '#1d3358';
+        g.fillRect(608 + i * 58, 228, 6, 16);
+        g.fillRect(634 + i * 58, 228, 6, 16);
+        g.fillStyle = '#2f6fed';
+      }
+      drawLabel(g, 740, 188, 'Gate seats');
+    },
     entities:[
-      talker('guard', 180, 330, 'adult', 'Guard', () => state.flags.disguised
-        ? ['Those coats are very tall. The arch will let you through.']
-        : ['Hello, small travellers! This lane is for grown-ups.', 'The photo booth is back in the hall.'],
+      talker('guard', 120, 300, 'adult', 'Guard', () => state.flags.securityPassed
+        ? ['You are through. The scanner will not take the same coats twice.']
+        : state.flags.disguised
+          ? ['Tall coats. Walk up to the scanner and press the yellow button. Once only.']
+          : ['Hello, small travellers! This scanner is for grown-ups.', 'The photo booth is back in the hall.'],
         {shirt:'#2c4a8a', pants:'#1c2c55', hair:'#222', hat:'#1c2c55', badge:true}),
       prop({
-        id:'arch', x:680, y:250, range:80,
-        prompt(){ return state.flags.securityPassed ? 'Airside' : 'Security'; },
+        id:'arch', x:390, y:270, range:78,
+        prompt(){ return state.flags.securityPassed ? 'Scanned' : 'Scanner'; },
         sparkle(){ return !!state.flags.disguised && !state.flags.securityPassed; },
         use: trySecurity,
-        draw(g){
-          g.strokeStyle = state.flags.disguised ? '#3aaa6a' : '#e23b3b';
-          g.lineWidth = 8;
-          g.strokeRect(640, 150, 80, 110);
-          drawLabel(g, 680, 140, 'Arch');
-        }
+        draw(g){ drawLabel(g, 390, 250, 'Scanner'); }
       }),
-      door('back-sec', 480, 452, 'Hall', 'departures', 'security')
+      door('back-sec', 160, 490, 'Hall', 'departures', 'security'),
+      prop({
+        id:'board', x:860, y:250, range:84,
+        prompt(){ return mexicoReady() ? 'Board' : 'Gate'; },
+        sparkle(){ return mexicoReady(); },
+        use: tryBoard,
+        draw(g){ drawMexicoSign(g, 860, 240, mexicoReady()); }
+      }),
+      talker('pilot', 600, 310, 'adult', 'Captain Sol', () => {
+        const n = countSet('air');
+        if (!state.flags.securityPassed) return ['I am by the window. Come through the scanner first.'];
+        if (mexicoReady()) return ['The Mexico sign is flashing. Climb aboard!'];
+        return ['Squishies aboard: ' + n + ' / 7. The sign flashes when we have them all.'];
+      }, {shirt:'#1d3358', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'}),
+      prop({
+        id:'piano', x:700, y:430, range:70,
+        prompt(){ return 'Piano'; },
+        sparkle(){ return !state.flags.starPiano; },
+        use: openPiano,
+        draw(g){ roundRect(g, 660, 400, 80, 36, 6); fillStroke(g, '#222'); drawLabel(g, 700, 390, 'Piano'); }
+      }),
+      door('to-duty', 560, 490, 'Shop', 'duty', 'default'),
+      door('to-cafe', 700, 490, 'Cafe', 'cafe', 'default'),
+      door('to-play', 840, 490, 'Play', 'playzone', 'default'),
+      door('to-family', 900, 400, 'Cards', 'family', 'default'),
+      door('to-spot', 930, 470, 'Planes', 'observation', 'default')
     ]
   }));
+  rooms.security.solids.push({x:430, y:0, w:70, h:190}, {x:430, y:360, w:70, h:180});
 
   const shopSpawns = {default:{x:480, y:300}, security:{x:480, y:360}};
   const shopEnts = [
@@ -2758,7 +2866,7 @@ function buildRooms() {
     add(R(id, name, {
       floor, level:3,
       spawns:{default:{x:480, y:330}},
-      entities:[door('back-' + id, 480, 452, 'Hall', 'concourse', id)].concat(extras)
+      entities:[door('back-' + id, 480, 452, 'Gate', 'security', 'airside')].concat(extras)
     }));
   }
   shop('duty', 'Duty free', '#f8e8ff', [
@@ -2989,10 +3097,16 @@ function axis() {
 }
 function tryMove(dx, dy) {
   const room = ROOMS[state.room];
+  const prevX = state.px;
   state.px += dx;
   if (hits(state.px, state.py, 12, room.solids)) state.px -= dx;
   state.py += dy;
   if (hits(state.px, state.py, 12, room.solids)) state.py -= dy;
+  if (state.room === 'security') {
+    const line = 450;
+    if (!state.flags.securityPassed && prevX <= line && state.px > line) state.px = line;
+    if (state.flags.securityPassed && prevX >= line && state.px < line) state.px = line;
+  }
 }
 function update(dt) {
   if (mode === 'play' && state && !dialog && !modalOpen) {
@@ -3052,7 +3166,8 @@ function update(dt) {
   hover = computeHover();
 }
 function updateCamera(room) {
-  const zoom = Math.min(cssW / 560, cssH / 360);
+  const wide = room.id === 'security';
+  const zoom = Math.min(cssW / (wide ? 1000 : 560), cssH / (wide ? 580 : 360));
   const fit = Math.min(cssW / room.w, cssH / room.h);
   const scale = Math.max(zoom, fit);
   const viewW = cssW / scale;
