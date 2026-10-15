@@ -4590,7 +4590,7 @@ function update(dt) {
     barkTimer -= dt;
     if (barkTimer < 0) {
       barkTimer = 26;
-      const lines = [buddy() + ': I am right behind you!', 'Axel: Are we there yet?', 'Hallie: I like the colours.', kidName() + ': Sparkles mean look closer.'];
+      const lines = [buddy() + ': I am right behind you!', 'Axel: Are we there yet?', 'Hallie: Let\'s find some squishies!', kidName() + ': Sparkles mean look closer.'];
       if (state.level === 2) lines.push('Darcey: I want a turn on the swings!');
       if (state.level === 3) lines.push('Ava: Walk tall.');
       showToast(lines[Math.floor(Math.random() * lines.length)]);
