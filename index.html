@@ -433,7 +433,7 @@ function succeed(node, onWin) {
   const token = ++winToken;
   sfx('ok');
   node.append(el('p', {class:'bigwin'}, 'Yes!'));
-  setTimeout(() => { if (token === winToken) askLesson(onWin); }, 480);
+  setTimeout(() => { if (token === winToken) onWin(); }, 480);
 }
 
 function say(lines, onDone) {
@@ -1078,10 +1078,11 @@ function scrambleWord(word) {
   }
   return chars;
 }
-function askLesson(onPass) {
+function askLesson(onPass, kind) {
   const band = lessonBand();
   const n = lessonN++;
-  const wordTurn = n % 2 === 1;
+  const wordTurn = kind ? kind === 'word' : n % 2 === 1;
+  const index = kind ? n : Math.floor(n / 2);
   const who = state && state.leader ? kidName() : 'Friend';
   showCard(card => {
     const token = winToken;
@@ -1093,7 +1094,7 @@ function askLesson(onPass) {
     }
     card.append(el('h2', {}, 'Little puzzle'));
     if (!wordTurn) {
-      const spec = band.sums[Math.floor(n / 2) % band.sums.length];
+      const spec = band.sums[index % band.sums.length];
       card.append(el('p', {}, who + ', tap the answer.'));
       card.append(el('p', {class:'lesson-q'}, spec.q));
       const status = el('p', {class:'lesson-status'}, 'One of these is right.');
@@ -1125,7 +1126,7 @@ function askLesson(onPass) {
       card.append(status);
       return;
     }
-    const word = band.words[Math.floor(n / 2) % band.words.length];
+    const word = band.words[index % band.words.length];
     card.append(el('p', {}, who + ', put the letters in order to spell ' + word + '.'));
     const slots = el('div', {class:'slots'});
     const slotEls = word.split('').map(() => {
@@ -1445,8 +1446,8 @@ function openHow() {
       'Tap the ground where you want to go, or use the keyboard arrows.',
       'Tap a person, a door, or a sparkling thing to use it.',
       'There are three families of squishies. Each has 6 colours and 1 rare.',
-      'The rares are gold, rainbow, and emerald. Each one needs a kids puzzle.',
-      'After a puzzle, answer a sum or spell a word. Ava and Darcey try bigger ones, like 8 + 6 or MEXICO. Axel and Hallie try smaller ones, like 2 + 2 or CAT.',
+      'The rares are gold, rainbow, and emerald.',
+      'Each game is one kind: a sum, a spelling word, or a skill. Ava and Darcey try bigger sums and words, like 8 + 6 or MEXICO. Axel and Hallie try smaller ones, like 2 + 2 or CAT.',
       'Paper, pencils, spades and coats go in your bag. Use them at special spots.',
       'Stars are bonus stickers. They are not needed to finish.'
     ].forEach(t => card.append(el('p', {}, t)));
@@ -1710,7 +1711,8 @@ function timingGame(opts) {
   bar.append(zone, needle);
   const status = el('p', {}, '0 / ' + opts.need + '  — tap when the stick is in the green');
   const btn = el('button', {}, opts.noun || 'Now!');
-  btn.addEventListener('click', () => {
+  listenDown(btn, e => {
+    if (e && e.cancelable) e.preventDefault();
     if (!alive) return;
     if (pos >= 0.32 && pos <= 0.68) {
       hits++;
@@ -1767,76 +1769,18 @@ function searchGame(opts) {
   });
 }
 
+function openQuiz(kind, onPass) {
+  askLesson(onPass, kind);
+}
 function openBooks() {
-  const steps = ['#ff6b6b','#ff9a3c','#ffe14a','#7dce6a','#7dce6a','#ffe14a','#ff9a3c','#ff6b6b'];
-  const pool = ['#ff6b6b','#ff9a3c','#ffe14a','#7dce6a','#4aa8ff','#d27bff'];
-  let step = 0, alive = true, timer = 0;
-  const swatch = el('div', {class:'swatch'});
-  const shelf = el('div', {class:'shelf-row'});
-  const pile = el('div', {class:'choices'});
-  const status = el('p', {}, 'The books shuffle. Tap the one that matches the colour.');
-  function showNeed() { swatch.style.background = steps[step]; }
-  function deal() {
-    if (!alive) return;
-    const bag = [steps[step]];
-    const extras = pool.filter(c => c !== steps[step]);
-    while (bag.length < 6) bag.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
-    for (let i = bag.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp;
-    }
-    pile.replaceChildren();
-    bag.forEach(color => {
-      const btn = el('button', {class:'choice'});
-      btn.style.background = color;
-      btn.dataset.color = color;
-      listenDown(btn, e => {
-        if (e.cancelable) e.preventDefault();
-        if (!alive) return;
-        if (btn.dataset.color !== steps[step]) {
-          sfx('no');
-          btn.classList.add('shake');
-          status.textContent = 'Not that colour. Look at the square.';
-          return;
-        }
-        sfx('ok');
-        const placed = el('i');
-        placed.style.background = color;
-        shelf.append(placed);
-        step++;
-        if (step >= steps.length) {
-          alive = false;
-          clearInterval(timer);
-          succeed(pile, () => {
-            closeModal();
-            if (!state.items.paper && !state.items.plan) {
-              state.items.paper = true;
-              save();
-              say([{name:'Mrs Page', text:'Up the rainbow and back again. The box gives you paper! Take it to the classroom table with the pencils.'}]);
-            } else say([{name:'Mrs Page', text:'The shelf looks lovely. We already have paper.'}]);
-          });
-          return;
-        }
-        status.textContent = (step === 4 ? 'Now the colours go backwards. ' : '') + (step + 1) + ' / ' + steps.length;
-        showNeed();
-        deal();
-      });
-      pile.append(btn);
-    });
-  }
-  showCard(card => {
-    card.append(el('h2', {}, 'Tidy the books'));
-    card.append(el('p', {}, 'Match the colour, then keep going when the books jump.'));
-    card.append(swatch);
-    card.append(shelf);
-    card.append(pile);
-    card.append(status);
-    addBack(card);
+  openQuiz('word', () => {
+    closeModal();
+    if (!state.items.paper && !state.items.plan) {
+      state.items.paper = true;
+      save();
+      say([{name:'Mrs Page', text:'You spelled it. The box gives you paper! Take it to the classroom table with the pencils.'}]);
+    } else say([{name:'Mrs Page', text:'Lovely spelling. We already have paper.'}]);
   });
-  showNeed();
-  deal();
-  timer = setInterval(() => { if (alive) deal(); }, 2600);
-  trackMini(() => { alive = false; clearInterval(timer); });
 }
 function openFoods() {
   const foods = [
@@ -1885,7 +1829,7 @@ function openFoods() {
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    const speed = 80 + got * 22;
+    const speed = 150 + got * 40;
     const width = belt.clientWidth || 360;
     movers.forEach(b => {
       b._x += speed * dt;
@@ -2031,7 +1975,7 @@ function openRainbow() {
     if (!alive) return;
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    const speed = 70 + step * 10 + (step >= 6 ? 40 : 0);
+    const speed = 145 + step * 20 + (step >= 6 ? 80 : 0);
     const width = river.clientWidth || 360;
     stones.forEach(b => {
       b._x += speed * dt;
@@ -2066,91 +2010,7 @@ function openBeanbag() {
   });
 }
 function openPaint() {
-  const rounds = [
-    {art:['#ff5a5a','#ffe14a','#4aa8ff','#67d36a'], odd:2, wrong:'#ff9a3c'},
-    {art:['#b07cff','#ff9a3c','#ff9a3c','#4aa8ff'], odd:0, wrong:'#ff5a5a'},
-    {art:['#67d36a','#ffe14a','#4aa8ff','#ff5a5a'], odd:3, wrong:'#ff9a3c'},
-    {art:['#4aa8ff','#67d36a','#ffe14a','#b07cff','#ff5a5a','#ff9a3c'], odd:4, wrong:'#ff7a4a'},
-    {art:['#ffe14a','#fff3a0','#4aa8ff','#67d36a','#ff5a5a','#b07cff'], odd:1, wrong:'#ffe14a'},
-    {art:['#ff5a5a','#ff9a3c','#ffe14a','#67d36a','#4aa8ff','#b07cff'], odd:5, wrong:'#7a5cff'}
-  ];
-  const pots = ['#ff5a5a','#ff9a3c','#ff7a4a','#ffe14a','#fff3a0','#67d36a','#4aa8ff','#b07cff','#7a5cff'];
-  let round = 0, phase = 'find', alive = true;
-  const hers = el('div', {class:'board n4'});
-  const yours = el('div', {class:'board n4'});
-  const pal = el('div', {class:'choices'});
-  const status = el('p', {}, 'Tap the square on your painting that does not match.');
-  function cell(color) {
-    const b = el('button', {class:'choice'});
-    b.style.background = color;
-    return b;
-  }
-  function draw() {
-    const spec = rounds[round];
-    const wide = spec.art.length > 4;
-    hers.className = 'board ' + (wide ? 'n6' : 'n4');
-    yours.className = 'board ' + (wide ? 'n6' : 'n4');
-    hers.replaceChildren();
-    yours.replaceChildren();
-    spec.art.forEach((color, i) => {
-      hers.append(cell(color));
-      const mine = cell(i === spec.odd ? spec.wrong : color);
-      listenDown(mine, e => {
-        if (e.cancelable) e.preventDefault();
-        if (!alive || phase !== 'find') return;
-        if (i !== spec.odd) {
-          sfx('no');
-          mine.classList.add('shake');
-          status.textContent = 'That square matches. Find the odd one.';
-          return;
-        }
-        sfx('ok');
-        phase = 'fix';
-        mine.style.outline = '4px solid #ffcf33';
-        status.textContent = 'Now tap the colour that fixes it.';
-      });
-      yours.append(mine);
-    });
-  }
-  pots.forEach(color => {
-    const b = el('button', {class:'choice'});
-    b.style.background = color;
-    listenDown(b, e => {
-      if (e.cancelable) e.preventDefault();
-      if (!alive || phase !== 'fix') {
-        if (alive && phase === 'find') status.textContent = 'Find the odd square first.';
-        return;
-      }
-      if (color !== rounds[round].art[rounds[round].odd]) {
-        sfx('no');
-        b.classList.add('shake');
-        status.textContent = 'That is not the matching colour.';
-        return;
-      }
-      sfx('ok');
-      round++;
-      if (round >= rounds.length) {
-        alive = false;
-        succeed(yours, () => grantSquishy('red', 'Miss Dot', 'You fixed every painting! A red squishy pops out!'));
-        return;
-      }
-      phase = 'find';
-      status.textContent = 'Next painting. Find the odd square. ' + (round + 1) + ' / ' + rounds.length;
-      draw();
-    });
-    pal.append(b);
-  });
-  showCard(card => {
-    card.append(el('h2', {}, 'Fix the painting'));
-    card.append(el('p', {}, 'Miss Dot’s picture stays on the left. Find the square that is wrong, then tap the colour that fixes it.'));
-    const boards = el('div', {class:'boards'});
-    boards.append(hers, yours);
-    card.append(boards);
-    card.append(status);
-    card.append(pal);
-    addBack(card);
-  });
-  draw();
+  openQuiz('sum', () => grantSquishy('red', 'Miss Dot', 'The sum is right! A red squishy pops out!'));
 }
 function openKeySearch() {
   const stuff = [
@@ -2203,87 +2063,39 @@ function openShed() {
     addBack(card);
   });
 }
-function openMash(opts) {
-  let n = 0;
-  const status = el('p', {}, '0 / ' + opts.need);
-  const btn = el('button', {}, opts.noun);
-  const art = el('div', {class:'swingbox'});
-  art.append(el('div', {}, opts.emoji || '🎢'));
-  art.style.pointerEvents = 'none';
-  btn.style.minWidth = '180px';
-  btn.style.minHeight = '72px';
-  btn.style.fontSize = '28px';
-  listenDown(btn, e => {
-    if (e.cancelable) e.preventDefault();
-    if (n >= opts.need) return;
-    n++;
-    sfx('ok');
-    status.textContent = n + ' / ' + opts.need;
-    art.style.transform = 'rotate(' + ((n % 2 === 0 ? -1 : 1) * Math.min(n, 8) * 4) + 'deg)';
-    if (n >= opts.need) {
-      btn.disabled = true;
-      succeed(art, opts.onWin);
-    }
-  });
-  showCard(card => {
-    card.append(el('h2', {}, opts.title));
-    card.append(el('p', {}, opts.help));
-    card.append(art);
-    card.append(status);
-    card.append(btn);
-    addBack(card);
-  });
-}
 function openSwing() {
-  openMash({
-    title: 'Swings', need: 8, noun: 'Swing!', emoji: '🧒',
-    help: 'Tap Swing until you are high enough to grab the mint squishy.',
+  timingGame({
+    title: 'Swings',
+    help: 'Tap Swing when the stick is on the green. Get 4 in.',
+    need: 4,
+    noun: 'Swing!',
     onWin: () => grantSquishy('mint', 'Darcey', 'I grabbed the mint squishy at the top!')
   });
 }
 function openSeesaw() {
-  openMash({
-    title: 'Seesaw', need: 6, noun: 'Bounce!', emoji: '⚖️',
-    help: 'Bounce six times. A lemon squishy is on the other seat.',
-    onWin: () => grantSquishy('lemon', 'Axel', 'Boing! The lemon squishy bounced into my hands!')
-  });
+  openQuiz('sum', () => grantSquishy('lemon', 'Axel', 'The sum is right! The lemon squishy bounced into my hands!'));
 }
 function openRoundabout() {
-  let meter = 0, spin = false, alive = true, last = performance.now(), angle = 0;
-  const wheel = el('div', {class:'swingbox'});
-  wheel.textContent = '⭕';
-  wheel.style.fontSize = '80px';
-  wheel.style.textAlign = 'center';
-  const status = el('p', {}, 'Hold Spin');
-  const btn = el('button', {}, 'Spin');
-  const down = () => { spin = true; };
-  const up = () => { spin = false; };
-  btn.dataset.hold = '1';
-  listenDown(btn, e => { if (e.cancelable) e.preventDefault(); down(); });
-  listenUp(btn, up);
-  btn.addEventListener('pointerleave', up);
-  function loop(now) {
-    if (!alive) return;
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
-    if (spin) { meter += dt; angle += dt * 240; sfxTick = (sfxTick || 0) + dt; }
-    else meter = Math.max(0, meter - dt * 0.25);
-    wheel.style.transform = 'rotate(' + angle + 'deg)';
-    status.textContent = 'Spinning ' + Math.min(100, Math.floor(meter / 1.6 * 100)) + '%';
-    if (meter >= 1.6) { alive = false; succeed(wheel, () => grantSquishy('sky', 'Hallie', 'The sky squishy flew off and I caught it!')); return; }
-    requestAnimationFrame(loop);
-  }
-  let sfxTick = 0;
-  showCard(card => {
-    card.append(el('h2', {}, 'Roundabout'));
-    card.append(el('p', {}, 'Press and hold Spin until it is fast.'));
-    card.append(wheel); card.append(status); card.append(btn); addBack(card);
+  timingGame({
+    title: 'Roundabout',
+    help: 'Tap Spin when the stick is on the green. Get 4 spins in.',
+    need: 4,
+    noun: 'Spin',
+    onWin: () => grantSquishy('sky', 'Hallie', 'The sky squishy flew off and I caught it!')
   });
-  const raf = requestAnimationFrame(loop);
-  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openSlide(kind) {
-  const coral = kind === 'coral';
+  if (kind === 'coral') {
+    timingGame({
+      title: 'Park slide',
+      help: 'Tap Slide when the stick is on the green. Get 4 slides in.',
+      need: 4,
+      noun: 'Slide!',
+      onWin: () => grantSquishy('coral', kidName(), 'You grabbed the coral squishy on the way down!')
+    });
+    return;
+  }
+  const coral = false;
   const color = coral ? '#ff7f6e' : '#4aa8ff';
   const prizeAt = 0.58;
   const span = 0.15;
@@ -2390,73 +2202,10 @@ function openDucks() {
   trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openHop() {
-  const skips = [4, 7, 2];
-  let round = 0, expect = 1, alive = true;
-  const status = el('p', {}, 'Hop in order. Jump over the stone, then tap the stone.');
-  const buttons = [];
-  function draw() {
-    buttons.forEach(b => {
-      const n = Number(b.dataset.n);
-      b.textContent = n === skips[round] ? '🪨' : String(n);
-      b.style.background = n === skips[round] ? '#d7c4a3' : '#fff';
-    });
-  }
-  showCard(card => {
-    card.append(el('h2', {}, 'Hopscotch'));
-    card.append(el('p', {}, 'Three hops. Skip the stone, finish the numbers, then pick the stone up.'));
-    const grid = el('div', {class:'hopgrid'});
-    for (let n = 1; n <= 8; n++) {
-      const b = el('button', {class:'choice'}, String(n));
-      b.dataset.n = String(n);
-      listenDown(b, e => {
-        if (e.cancelable) e.preventDefault();
-        if (!alive) return;
-        const num = Number(b.dataset.n);
-        const skip = skips[round];
-        if (expect === 'stone') {
-          if (num !== skip) {
-            sfx('no');
-            status.textContent = 'Tap the stone to finish this hop.';
-            return;
-          }
-          round++;
-          if (round >= skips.length) {
-            alive = false;
-            succeed(grid, () => { closeModal(); addStar('starHop'); say([{name:buddy(), text:'You skipped every stone! A star sticker was under the last one.'}]); });
-            return;
-          }
-          expect = 1;
-          sfx('ok');
-          status.textContent = 'New stone! Hop in order and jump over it.';
-          draw();
-          return;
-        }
-        if (num === skip) {
-          sfx('no');
-          status.textContent = 'Jump over the stone. Come back for it at the end.';
-          return;
-        }
-        if (num !== expect) {
-          sfx('no');
-          expect = 1;
-          status.textContent = 'Start this hop again, from 1.';
-          return;
-        }
-        sfx('ok');
-        expect++;
-        if (expect === skip) expect++;
-        if (expect > 8) {
-          expect = 'stone';
-          status.textContent = 'Now tap the stone!';
-        } else status.textContent = 'Next is ' + expect + '.';
-      });
-      buttons.push(b);
-      grid.append(b);
-    }
-    card.append(grid);
-    card.append(status);
-    addBack(card);
-    draw();
+  openQuiz('word', () => {
+    closeModal();
+    addStar('starHop');
+    say([{name:buddy(), text:'You spelled it! A star sticker was under the last stone.'}]);
   });
 }
 function minePoint(p, w, h) {
@@ -2608,76 +2357,10 @@ function openDig() {
   trackMini(() => { stopped = true; cancelAnimationFrame(raf); });
 }
 function openPassport() {
-  const rounds = [
-    {want:['😊','⭐','🧳','💖'], wrong:[['😊','⭐','🧳','🎈'],['🐱','⭐','🧳','💖']]},
-    {want:['✈️','⭐','😊','💖'], wrong:[['✈️','⭐','😊','🎈'],['✈️','🌵','😊','💖'],['🧳','⭐','😊','💖']]},
-    {want:['😊','🧳','⭐','🌵'], wrong:[['😊','🧳','⭐','🌮'],['😊','🧳','💖','🌵']]},
-    {want:['⭐','😊','💖','✈️'], wrong:[['⭐','😊','💖','🌵'],['⭐','😊','🎈','✈️'],['⭐','🧳','💖','✈️']]},
-    {want:['💖','✈️','🌵','⭐'], wrong:[['💖','✈️','🌵','😊'],['💖','✈️','🌮','⭐'],['⭐','✈️','🌵','⭐']]}
-  ];
-  let round = 0, alive = true;
-  const sample = el('div', {class:'passcard'});
-  const row = el('div', {class:'passes'});
-  const status = el('p', {}, 'Only one pass matches. Check every sticker.');
-  function stickerRow(list) {
-    const card = el('button', {class:'passcard'});
-    list.forEach(s => card.append(el('span', {}, s)));
-    return card;
-  }
-  function draw() {
-    const spec = rounds[round];
-    sample.replaceChildren();
-    spec.want.forEach(s => sample.append(el('span', {}, s)));
-    const cards = spec.wrong.map(w => ({stickers:w, ok:false}));
-    cards.splice(Math.floor(Math.random() * (cards.length + 1)), 0, {stickers:spec.want, ok:true});
-    row.replaceChildren();
-    cards.forEach(c => {
-      const card = stickerRow(c.stickers);
-      listenDown(card, e => {
-        if (e.cancelable) e.preventDefault();
-        if (!alive) return;
-        if (!c.ok) {
-          sfx('no');
-          card.classList.add('shake');
-          status.textContent = 'Close! One sticker is different. Look again.';
-          return;
-        }
-        sfx('ok');
-        round++;
-        if (round >= rounds.length) {
-          alive = false;
-          succeed(row, () => grantSquishy('teal', 'Agent', 'You spotted every real pass. Here is a teal squishy!'));
-          return;
-        }
-        status.textContent = 'Next pass. ' + (round + 1) + ' / ' + rounds.length;
-        draw();
-      });
-      row.append(card);
-    });
-  }
-  showCard(card => {
-    card.append(el('h2', {}, 'Check the pass'));
-    card.append(el('p', {}, 'The real pass is on top. Tap the card that matches every sticker. The others are almost right.'));
-    card.append(sample);
-    card.append(row);
-    card.append(status);
-    addBack(card);
-  });
-  draw();
+  openQuiz('word', () => grantSquishy('teal', 'Agent', 'You spelled it. Here is a teal squishy!'));
 }
 function openShelf() {
-  const cells = [];
-  const target = 1 + Math.floor(Math.random() * 15);
-  const colors = ['#4aa8ff','#ff8fb3','#ffe14a','#7dce6a','#c9b6ff','#ff9a3c','#9ad7ff','#e7b0c4'];
-  for (let i = 0; i < 16; i++) {
-    cells.push({label: i === target ? '★' : '·', target: i === target, bg: colors[i % colors.length]});
-  }
-  searchGame({
-    title: 'Duty free',
-    help: 'Find the bottle with a gold star.',
-    cells,
-    onWin: () => grantSquishy('magenta', 'Ava', 'The star bottle had a magenta squishy inside!')
-  });
+  openQuiz('sum', () => grantSquishy('magenta', 'Ava', 'The sum is right! A magenta squishy was in the bottle!'));
 }
 function openCups() {
   const stack = el('div', {});
@@ -2739,7 +2422,7 @@ function openPlanes() {
     const lime = n % 4 === 0;
     plane.style.top = (10 + Math.random() * 110) + 'px';
     plane.style.left = '-40px';
-    plane.style.transition = 'left 4.2s linear';
+    plane.style.transition = 'left 2.2s linear';
     plane.style.filter = lime ? 'hue-rotate(70deg) saturate(2)' : 'grayscale(.2)';
     listenDown(plane, e => {
       e.stopPropagation();
@@ -2749,8 +2432,8 @@ function openPlanes() {
     });
     sky.append(plane);
     requestAnimationFrame(() => { plane.style.left = '110%'; });
-    setTimeout(() => plane.remove(), 4500);
-  }, 1100);
+    setTimeout(() => plane.remove(), 2500);
+  }, 700);
   showCard(card => {
     card.append(el('h2', {}, 'Plane spotting'));
     card.append(el('p', {}, 'Tap only the bright green plane.'));
@@ -2769,7 +2452,7 @@ function openCarousel() {
   ];
   const colors = ['#c9843a', '#2c3e6b', '#8d3b4b'];
   const need = 4;
-  let hits = 0, alive = true, x = 0, speed = 100, last = performance.now();
+  let hits = 0, alive = true, x = 0, speed = 180, last = performance.now();
   function shuffle(list) {
     const a = list.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -2834,7 +2517,7 @@ function openCarousel() {
     const choices = load.filter(l => l.id !== load[i].id);
     target = choices[Math.floor(Math.random() * choices.length)];
     showTarget();
-    speed = Math.min(160, speed + 16);
+    speed = Math.min(280, speed + 28);
     status.textContent = hits + ' / ' + need;
   }
   function loop(now) {
@@ -2963,11 +2646,9 @@ function openPiano() {
       notes++;
       if (notes >= 5 && !done) {
         done = true;
-        askLesson(() => {
-          addStar('starPiano');
-          closeModal();
-          say([{name:'Ava', text:'Nice tune! A star sticker slid out of the piano.'}]);
-        });
+        addStar('starPiano');
+        closeModal();
+        say([{name:'Ava', text:'Nice tune! A star sticker slid out of the piano.'}]);
       }
     });
     row.append(b);
