@@ -265,12 +265,15 @@ const SQUISHIES = [
 const SQUISHY_MAP = Object.fromEntries(SQUISHIES.map(s => [s.id, s]));
 const SETS = [{id:'school', name:'School'}, {id:'park', name:'Park'}, {id:'air', name:'Airport'}];
 const PLAYABLE = ['ava','darcey','axel','hallie'];
+const UNIFORM = '#6D1A2A';
+const TROUSERS = '#1a1a1a';
+const SHIRT = '#ffffff';
 const KIDS = {
-  ava: {name:'Ava', age:7, scale:1, hair:'#ffd24a', outfit:'#ff79b0', shoe:'#ff5a7a', style:'pony', band:'#ff5a7a', blurb:'Age 7. Blonde ponytail. Likes making plans.'},
-  darcey: {name:'Darcey', age:7, scale:1.16, hair:'#6b3a22', outfit:'#8b6cff', shoe:'#3a2a6a', style:'pony', band:'#ffd24a', blurb:'Age 7. Taller. Brown ponytail. Fast on the swings.'},
-  axel: {name:'Axel', age:4, scale:0.78, hair:'#ffe07a', outfit:'#3aa0ff', shorts:'#2f9e55', shoe:'#f4f4f4', style:'buzz', blurb:'Age 4. Blond buzz cut. Biscuit expert.'},
-  hallie: {name:'Hallie', age:4, scale:0.8, hair:'#6b3a22', outfit:'#ffe14a', shoe:'#ff7ab0', style:'pigtails', blurb:'Age 4. Brown pigtails. Friend of every duck.'},
-  finn: {name:'Finn', age:7, scale:0.92, hair:'#e25822', outfit:'#3ecf6e', shorts:'#245c9a', shoe:'#333', style:'buzz', blurb:''}
+  ava: {name:'Ava', age:7, scale:1, hair:'#ffd24a', outfit:UNIFORM, shoe:TROUSERS, style:'pony', band:'#ff5a7a', blurb:'Age 7. Blonde ponytail. Likes making plans.'},
+  darcey: {name:'Darcey', age:7, scale:1.16, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, style:'pony', band:'#ffd24a', blurb:'Age 7. Taller. Brown ponytail. Fast on the swings.'},
+  axel: {name:'Axel', age:4, scale:0.78, hair:'#ffe07a', outfit:UNIFORM, shorts:TROUSERS, shoe:TROUSERS, style:'buzz', blurb:'Age 4. Blond buzz cut. Biscuit expert.'},
+  hallie: {name:'Hallie', age:4, scale:0.8, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, style:'pigtails', blurb:'Age 4. Brown pigtails. Friend of every duck.'},
+  finn: {name:'Finn', age:7, scale:0.92, hair:'#e25822', outfit:UNIFORM, shorts:TROUSERS, shoe:TROUSERS, style:'buzz', blurb:''}
 };
 const PAIRS = [
   {ids:['ava','axel'], label:'Ava & Axel', coat:'#7a4a28', coatDark:'#5c3518', topHair:'#ffe07a', topStyle:'buzz', lowHair:'#ffd24a', lowStyle:'pony', little:'#f4f4f4', big:'#ff5a7a'},
@@ -550,25 +553,42 @@ function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader) {
   g.scale(facing === 'left' ? -s : s, s);
   g.fillStyle = 'rgba(0,0,0,.18)';
   g.beginPath(); g.ellipse(0, 2, 14, 5, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = SKIN;
-  if (k.style === 'buzz') {
-    roundRect(g, -8, -20, 6, 14, 2); g.fill();
-    roundRect(g, 2, -20, 6, 14, 2); g.fill();
-    g.fillStyle = k.shorts;
-    roundRect(g, -9, -26, 18, 10, 3); fillStroke(g, k.shorts);
+  const boy = k.style === 'buzz';
+  g.fillStyle = TROUSERS;
+  if (boy) {
+    roundRect(g, -8, -30, 7, 24, 2); g.fill();
+    roundRect(g, 1, -30, 7, 24, 2); g.fill();
   } else {
-    roundRect(g, -7, -16, 5, 12, 2); g.fill();
-    roundRect(g, 2, -16, 5, 12, 2); g.fill();
+    roundRect(g, -7, -18, 5, 12, 2); g.fill();
+    roundRect(g, 2, -18, 5, 12, 2); g.fill();
   }
-  g.fillStyle = k.shoe;
+  g.fillStyle = TROUSERS;
   roundRect(g, -9, -8, 8, 6, 2); g.fill();
   roundRect(g, 1, -8, 8, 6, 2); g.fill();
-  if (k.style === 'buzz') roundRect(g, -12, -44, 24, 22, 6);
-  else roundRect(g, -14, -46, 28, 32, 8);
-  fillStroke(g, k.outfit);
+  g.fillStyle = SHIRT;
+  roundRect(g, boy ? -7 : -6, -48, boy ? 14 : 12, 12, 2); g.fill();
+  if (boy) {
+    roundRect(g, -12, -40, 24, 18, 5);
+    fillStroke(g, UNIFORM);
+  } else {
+    roundRect(g, -15, -26, 30, 18, 5);
+    fillStroke(g, TROUSERS);
+    roundRect(g, -7, -40, 14, 18, 3);
+    fillStroke(g, TROUSERS);
+    roundRect(g, -16, -44, 8, 22, 3);
+    fillStroke(g, UNIFORM);
+    roundRect(g, 8, -44, 8, 22, 3);
+    fillStroke(g, UNIFORM);
+  }
+  g.fillStyle = UNIFORM;
+  roundRect(g, boy ? -18 : -20, -40, 6, 12, 3); g.fill();
+  roundRect(g, boy ? 12 : 14, -40, 6, 12, 3); g.fill();
+  g.fillStyle = SHIRT;
+  roundRect(g, boy ? -18 : -20, -30, 6, 4, 1); g.fill();
+  roundRect(g, boy ? 12 : 14, -30, 6, 4, 1); g.fill();
   g.fillStyle = SKIN;
-  roundRect(g, -18, -40, 6, 14, 3); g.fill();
-  roundRect(g, 12, -40, 6, 14, 3); g.fill();
+  roundRect(g, boy ? -18 : -20, -28, 6, 6, 2); g.fill();
+  roundRect(g, boy ? 12 : 14, -28, 6, 6, 2); g.fill();
   g.fillStyle = SKIN;
   g.beginPath(); g.arc(0, -58, 14, 0, Math.PI * 2); fillStroke(g, SKIN);
   g.fillStyle = k.hair;
