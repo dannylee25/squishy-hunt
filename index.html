@@ -1448,7 +1448,7 @@ function schoolHint() {
     if (!state.items.key) return 'Step 2: the shiny shed key is in the lost-property box.';
     return 'Step 2: the key fits the playground shed. Take the two spades.';
   }
-  if (phase === 'dig') return 'Step 3: dig the tunnel in the playground sandpit. Go down, across, and back up.';
+  if (phase === 'dig') return 'Step 3: dig the tunnel in the playground digging bit. Go down, across, and back up.';
   if (countSet('school') < 7) return 'The tunnel is open. Collect the school squishies (' + countSet('school') + '/7), then crawl through.';
   return 'The tunnel is open. Crawl through to the park!';
 }
@@ -1493,7 +1493,7 @@ function objective() {
     if (!coatsReady()) return 'Step 1: get both coats from the cloakroom';
     if (!state.items.key) return 'Step 2: find the shed key in lost property';
     if (!spadesReady()) return 'Step 2: take two spades from the playground shed';
-    if (!state.flags.tunnelOpen) return 'Step 3: dig the tunnel in the playground sandpit';
+    if (!state.flags.tunnelOpen) return 'Step 3: dig the tunnel in the playground digging bit';
     if (countSet('school') < 7) return 'Collect school squishies ' + countSet('school') + '/7, then crawl through';
     return 'Crawl through the tunnel!';
   }
@@ -1830,7 +1830,7 @@ function openPlan() {
     'Every step is ticked. The tunnel is the way out.',
     'Step 1 is highlighted. Ms Maple is already in the cupboard. Take both coats from the cloakroom.',
     'Step 2 is highlighted. Take two spades from the playground shed.',
-    'Step 3 is highlighted. Dig the tunnel in the sandpit.'
+    'Step 3 is highlighted. Dig the tunnel in the digging bit.'
   ];
   showCard(card => {
     card.append(el('h2', {}, 'Our plan'));
@@ -2385,7 +2385,7 @@ function openShed() {
   }
   showCard(card => {
     card.append(el('h2', {}, 'Which tool digs?'));
-    card.append(el('p', {}, 'Tap the spade. We need two of them for the sandpit.'));
+    card.append(el('p', {}, 'Tap the spade. We need two of them for the digging bit.'));
     const status = el('p', {}, '');
     const row = el('div', {class:'choices'});
     [['🧹 Broom', false], ['🪣 Bucket', false], ['Spade', true]].forEach(([label, ok]) => {
@@ -2405,7 +2405,7 @@ function openShed() {
         state.items.spades = 2;
         save();
         closeModal();
-        say([{name:buddy(), text: coatsReady() ? 'Two spades! Step 2 is done. The sandpit is next.' : 'Two spades for the bag. Step 1 is still both coats.'}], () => maybeShowPlan());
+        say([{name:buddy(), text: coatsReady() ? 'Two spades! Step 2 is done. The digging bit is next.' : 'Two spades for the bag. Step 1 is still both coats.'}], () => maybeShowPlan());
       });
       row.append(b);
     });
@@ -2625,7 +2625,7 @@ function drawMine(g, w, h, p) {
   g.fillRect(100, ground - 70, 22, 22);
   g.fillStyle = '#69c15f';
   g.fillRect(0, ground - 18, w, 28);
-  g.fillStyle = '#e6c98a';
+  g.fillStyle = '#6b3a22';
   g.beginPath(); g.ellipse(w * 0.24, ground - 4, 70, 22, 0, 0, Math.PI * 2); g.fill();
   g.fillStyle = '#d7c4a2';
   g.fillRect(w * 0.5 - 16, ground - 118, 32, 118);
@@ -2697,7 +2697,7 @@ function openDig() {
     sfx('dig');
     btn.textContent = labelFor(progress >= 1 ? 1 : progress);
     status.textContent = progress < 0.3
-      ? 'Down into the sand.'
+      ? 'Down into the soil.'
       : progress < 0.7
         ? 'Across under the playground.'
         : progress < 1
@@ -3205,7 +3205,7 @@ function trySand() {
   }
   const need = digBlockers();
   if (need.length) {
-    say([{name:buddy(), text:'The sand is not ready. ' + schoolHint()}]);
+    say([{name:buddy(), text:'The digging bit is not ready. ' + schoolHint()}]);
     return;
   }
   openDig();
@@ -3453,7 +3453,7 @@ function buildRooms() {
         materials: 'I am staying for art club. Mrs Page keeps the paper, and the red pot has pencils.',
         coats: 'Step 1: both coats hang in the cloakroom. One tap takes them both.',
         spades: 'Step 2: the shed key is in the lost box. The spades are in the playground shed.',
-        dig: 'The sandpit is just outside. Dig down, then across, then up.',
+        dig: 'The digging bit is just outside. Dig down, then across, then up.',
         leave: 'The pink squishy hides by the desks. Then crawl through the tunnel.'
       })),
       prop({
@@ -3565,7 +3565,7 @@ function buildRooms() {
       materials: 'Paper is in the library. Pencils are in the classroom.',
       coats: 'Step 1: both coats are in the cloakroom.',
       spades: 'Step 2: the shed key is extra shiny, in the lost-property box.',
-      dig: 'Outside, the sandpit is ready for the tunnel.',
+      dig: 'Outside, the digging bit is ready for the tunnel.',
       leave: 'The tunnel is open on the playground. Mind the squishies.'
     }), {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
   ];
@@ -3595,7 +3595,7 @@ function buildRooms() {
         materials: 'Play the book game on the shelf. The paper is the prize. The yellow squishy likes the right-hand shelf.',
         coats: 'Step 1 is both coats in the cloakroom.',
         spades: 'Step 2 is the shed key, then two spades outside.',
-        dig: 'Step 3 is the sandpit outside. Dig down, across, and up.',
+        dig: 'Step 3 is the digging bit outside. Dig down, across, and up.',
         leave: 'The yellow squishy likes the right-hand shelf, if you still need it.'
       }), {shirt:'#d98a4a', pants:'#6a4030', hair:'#6b3a22', bun:true}),
       back('library', 'Corridor', 'corridor')
@@ -3659,7 +3659,7 @@ function buildRooms() {
         materials: 'After the plan, come back. Foods ride past and the purple squishy is the prize.',
         coats: 'Step 1 is the cloakroom coats. Lunch can wait.',
         spades: 'Step 2 is the shed spades. Foods can wait.',
-        dig: 'The sandpit tunnel is the way out. Apples can wait.',
+        dig: 'The tunnel in the digging bit is the way out. Apples can wait.',
         leave: 'Foods ride past. Tap the one that matches the big picture.'
       }), {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
       back('canteen', 'Corridor', 'corridor')
@@ -3678,7 +3678,7 @@ function buildRooms() {
         materials: 'Make the plan first. The beanbags can wait, and an orange squishy is their prize.',
         coats: 'Step 1 is coats from the cloakroom. The beanbags can wait.',
         spades: 'Step 2 is two spades from the shed outside.',
-        dig: 'The sandpit is outside. That is the tunnel.',
+        dig: 'The digging bit is outside. That is the tunnel.',
         leave: 'Four beanbags in the hoop. An orange squishy is the prize.'
       }), {shirt:'#ff5a5a', pants:'#2a2a2a', hair:'#222'}),
       back('hall', 'Corridor', 'corridor')
@@ -3696,7 +3696,7 @@ function buildRooms() {
         materials: 'Paper and pencils make the plan. The painting can wait.',
         coats: 'Step 1 is both coats from the cloakroom.',
         spades: 'Step 2 is two spades from the shed.',
-        dig: 'Step 3 is digging the sandpit tunnel.',
+        dig: 'Step 3 is the tunnel in the digging bit.',
         leave: 'Find the square that does not match. A red squishy is drying behind it.'
       }), {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
       back('art', 'Corridor', 'corridor')
@@ -3712,7 +3712,7 @@ function buildRooms() {
         materials: 'The plan comes before the bells. Paper and pencils first.',
         coats: 'Step 1 is the coats. The gold chest can wait.',
         spades: 'Step 2 is the spades from the shed.',
-        dig: 'The sandpit tunnel is Step 3.',
+        dig: 'The tunnel in the digging bit is Step 3.',
         leave: 'Tap the animal that shines. The gold chest opens if you keep up.'
       }), {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
       back('music', 'Corridor', 'corridor')
@@ -3723,11 +3723,17 @@ function buildRooms() {
     floor:'#69c15f', outdoor:true, level:1,
     spawns:{default:{x:480, y:250}},
     paint(g){
-      g.fillStyle = '#e6c98a';
+      g.fillStyle = '#6b3a22';
       g.beginPath(); g.ellipse(500, 400, 170, 72, 0, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#c6a15a'; g.lineWidth = 3; g.stroke();
+      g.fillStyle = '#8a4e2a';
+      g.beginPath(); g.ellipse(460, 386, 80, 30, -0.25, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#4a2814';
+      g.beginPath(); g.ellipse(545, 420, 64, 22, 0.35, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#3a2414';
+      g.lineWidth = 3;
+      g.beginPath(); g.ellipse(500, 400, 170, 72, 0, 0, Math.PI * 2); g.stroke();
       if (state.flags.tunnelOpen) {
-        g.fillStyle = '#3a2a22';
+        g.fillStyle = '#2a1a10';
         g.beginPath(); g.ellipse(500, 410, 36, 18, 0, 0, Math.PI * 2); g.fill();
       }
     },
@@ -3741,10 +3747,10 @@ function buildRooms() {
           {x:360, y:450}, {x:430, y:450}, {x:570, y:450}, {x:640, y:450},
           {x:500, y:330}, {x:500, y:460}
         ],
-        prompt(){ return state.flags.tunnelOpen ? 'Tunnel' : (digBlockers().length ? 'Sandpit' : 'Dig'); },
+        prompt(){ return state.flags.tunnelOpen ? 'Tunnel' : (digBlockers().length ? 'Digging bit' : 'Dig'); },
         sparkle(){ return state.flags.tunnelOpen || digBlockers().length === 0; },
         use: trySand,
-        draw(g){ drawLabel(g, 500, 330, state.flags.tunnelOpen ? 'Tunnel' : 'Sandpit'); }
+        draw(g){ drawLabel(g, 500, 330, state.flags.tunnelOpen ? 'Tunnel' : 'Digging bit'); }
       }),
       prop({
         id:'shed', x:155, y:178, range:90,
@@ -3766,7 +3772,7 @@ function buildRooms() {
         materials: 'Draw the plan before you touch my shed.',
         coats: 'Step 1 is the coats in the cloakroom. My shed is step 2.',
         spades: 'Step 2: the shed key is in lost property. Inside, take the two spades.',
-        dig: 'The sandpit is ready. Dig down, across under the playground, and up.',
+        dig: 'The digging bit is ready. Dig down, across under the playground, and up.',
         leave: 'The hole is open. Crawl through when the squishies are packed.'
       }), {shirt:'#4aa35a', pants:'#3d3428', hair:'#333', cap:'#3d3428'}),
       sign('flower', 140, 470, 'Flower', 'A star sticker was on the biggest daisy.', {
