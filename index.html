@@ -85,6 +85,8 @@
   .skybox, .pondbox, .pit { position:relative; height:180px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#b9e6ff; margin:8px 0; }
   .pondbox { background:#7ec8ea; }
   .pit { background:#f0d59a; height:220px; }
+  .dig-scene { width:100%; max-width:860px; height:auto; display:block; margin:8px auto; border:3px solid var(--ink); border-radius:16px; background:#8ecbff; }
+  .card > button.dig-go { min-width:220px; min-height:84px; font-size:32px; }
   .slide-stage { position:relative; height:260px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#d7f3ff; margin:8px 0; touch-action:manipulation; }
   .slide-stage.coral { background:#ffe4d8; }
   .slide-tower { position:absolute; left:3%; top:6%; width:58px; height:64px; background:#f7f1e4; border:3px solid var(--ink); border-radius:10px 10px 0 0; pointer-events:none; z-index:1; }
@@ -938,7 +940,8 @@ function sign(id, x, y, title, text, opt) {
     sparkle() { return !!(opt.star && !state.flags[opt.star]); },
     use() {
       if (opt.star) addStar(opt.star);
-      const lines = Array.isArray(text) ? text : [text];
+      const raw = typeof text === 'function' ? text() : text;
+      const lines = Array.isArray(raw) ? raw : [raw];
       say(lines.map(t => typeof t === 'string' ? {name:title, text:t} : t));
     },
     draw(g) {
@@ -1159,13 +1162,62 @@ function addStar(flag) {
   sfx('star');
   save();
 }
+function coatsReady() { return !!(state.items.coatMaple && state.items.coatButton); }
+function spadesReady() { return (state.items.spades || 0) >= 2; }
+function schoolPhase() {
+  if (!state || !state.items.plan) return 'materials';
+  if (!coatsReady() || !spadesReady()) return 'gear';
+  if (!state.flags.teacherLocked) return 'teacher';
+  if (!state.flags.tunnelOpen) return 'dig';
+  return 'leave';
+}
+function planFocus() {
+  const phase = schoolPhase();
+  if (phase === 'teacher') return 2;
+  if (phase === 'dig') return 3;
+  if (phase === 'leave') return 0;
+  return 1;
+}
+function schoolHint() {
+  const phase = schoolPhase();
+  if (phase === 'materials') {
+    if (!state.items.paper && !state.items.pencils) return 'First, get paper from the library and pencils from the red pot. Then draw the plan on the classroom table.';
+    if (!state.items.paper) return 'The pencils are ready. Paper is in the library. Mrs Page has a book game for it.';
+    if (!state.items.pencils) return 'The paper is ready. Pencils are in the red pot in the classroom.';
+    return 'Paper and pencils are in the bag. Draw the plan on the classroom table.';
+  }
+  if (phase === 'gear') {
+    if (!coatsReady() && !state.items.key) return 'Step 1: both coats are in the cloakroom. The shed key is in the lost box, and the spades are in the playground shed.';
+    if (!coatsReady() && !spadesReady()) return 'Step 1: the cloakroom still has both coats, and the shed still has the spades.';
+    if (!coatsReady()) return 'Step 1: both grown-up coats are on the cloakroom pegs. One tap takes them both.';
+    if (!state.items.key) return 'Step 1: the coats are packed. The shiny shed key is in the lost-property box.';
+    if (!spadesReady()) return 'Step 1: the key fits the playground shed. Take the two spades.';
+  }
+  if (phase === 'teacher') return 'Step 2: play peek-a-book at the cupboard door in the corridor. Ms Maple will stay for a story.';
+  if (phase === 'dig') return 'Step 3: dig the tunnel in the playground sandpit. Go down, across, and back up.';
+  if (countSet('school') < 7) return 'The tunnel is open. Collect the school squishies (' + countSet('school') + '/7), then crawl through.';
+  return 'The tunnel is open. Crawl through to the park!';
+}
+function schoolLines(byPhase) {
+  const phase = schoolPhase();
+  const extra = byPhase && byPhase[phase];
+  return extra ? [schoolHint(), extra] : [schoolHint()];
+}
+function maybeShowPlan() {
+  if (!state || !state.items.plan || state.level !== 1 || dialog || modalOpen) return;
+  const phase = schoolPhase();
+  const flag = phase === 'teacher' ? 'planStep2' : phase === 'dig' ? 'planStep3' : null;
+  if (!flag || state.flags[flag]) return;
+  state.flags[flag] = true;
+  save();
+  openPlan();
+}
 function digBlockers() {
   const need = [];
   if (!state.items.plan) need.push('the plan');
-  if (!state.items.coatMaple || !state.items.coatButton) need.push('both grown-up coats');
-  if ((state.items.spades || 0) < 2) need.push('two spades');
+  if (!coatsReady()) need.push('both grown-up coats');
+  if (!spadesReady()) need.push('two spades');
   if (!state.flags.teacherLocked) need.push('story time in the cupboard');
-  if (countSet('school') < 7) need.push('all 7 school squishies (' + countSet('school') + '/7)');
   return need;
 }
 function mexicoReady() {
@@ -1174,15 +1226,17 @@ function mexicoReady() {
 function objective() {
   if (!state) return '';
   if (state.level === 1) {
-    if (!state.items.paper && !state.items.plan) return 'Find paper in the library';
-    if (!state.items.pencils && !state.items.plan) return 'Find the pencils in the classroom';
-    if (!state.items.plan) return 'Use paper and pencils on the classroom table';
-    if (!state.items.coatButton || !state.items.coatMaple) return 'Get both coats from the cloakroom';
-    if (!state.items.key) return 'Find the shed key in lost property';
-    if ((state.items.spades || 0) < 2) return 'Open the playground shed for two spades';
-    if (!state.flags.teacherLocked) return 'Play peek-a-book at the cupboard door';
-    if (countSet('school') < 7) return 'Collect all 7 school squishies (' + countSet('school') + '/7). Gold is in music.';
-    if (!state.flags.tunnelOpen) return 'Dig a tunnel in the playground sandpit';
+    if (!state.items.plan) {
+      if (!state.items.paper) return 'Find paper in the library';
+      if (!state.items.pencils) return 'Find the pencils in the classroom';
+      return 'Draw the plan on the classroom table';
+    }
+    if (!coatsReady()) return 'Step 1: get both coats from the cloakroom';
+    if (!state.items.key) return 'Step 1: find the shed key in lost property';
+    if (!spadesReady()) return 'Step 1: take two spades from the playground shed';
+    if (!state.flags.teacherLocked) return 'Step 2: play peek-a-book at the cupboard door';
+    if (!state.flags.tunnelOpen) return 'Step 3: dig the tunnel in the playground sandpit';
+    if (countSet('school') < 7) return 'Collect school squishies ' + countSet('school') + '/7, then crawl through';
     return 'Crawl through the tunnel!';
   }
   if (state.level === 2) {
@@ -1263,6 +1317,7 @@ function enter(roomId, spawnName) {
     resetTrail();
     save();
     fade.classList.remove('on');
+    if (state.level === 1) maybeShowPlan();
   }, 160);
 }
 function finishLevel() {
@@ -1411,8 +1466,8 @@ function begin(id) {
     state.flags.tut = true;
     save();
     say([
-      {name:kidName(), text:'The squishies are still at school. We need a plan, two coats, two spades, and every squishy.'},
-      {name:buddy(), text:'Tap the ground to walk. Tap a sparkling thing to use it. We will follow you.'}
+      {name:kidName(), text:'First we make a plan. Paper is in the library and pencils are in the red pot.'},
+      {name:buddy(), text:'Tap the ground to walk. Everyone we meet will point to the next step.'}
     ]);
   }, 500);
 }
@@ -1446,6 +1501,7 @@ function continueGame() {
   resetTrail();
   mode = 'play';
   closeModal();
+  setTimeout(() => { if (state && state.level === 1) maybeShowPlan(); }, 400);
 }
 
 function openAlbum() {
@@ -1512,8 +1568,16 @@ function openPlan() {
   }
   state.flags.planRead = true;
   save();
+  const focus = planFocus();
+  const captions = [
+    'Every step is ticked. The tunnel is the way out.',
+    'Step 1 is highlighted. Take both coats and two spades.',
+    'Step 2 is highlighted. Play peek-a-book so Ms Maple stays in the cupboard.',
+    'Step 3 is highlighted. Dig the tunnel in the sandpit.'
+  ];
   showCard(card => {
     card.append(el('h2', {}, 'Our plan'));
+    card.append(el('p', {}, captions[focus]));
     const c = el('canvas', {class:'plan', width:'900', height:'520'});
     card.append(c);
     drawPlan(c);
@@ -1525,6 +1589,7 @@ function openPlan() {
 function drawPlan(c) {
   const g = c.getContext('2d');
   const w = c.width, h = c.height;
+  const focus = planFocus();
   g.fillStyle = '#fff8e6';
   g.fillRect(0, 0, w, h);
   g.strokeStyle = '#e7b0c4';
@@ -1534,49 +1599,84 @@ function drawPlan(c) {
   g.font = '800 42px Comic Sans MS, Trebuchet MS, cursive';
   g.textAlign = 'center';
   g.fillText('OUR PLAN', w / 2, 70);
-  function panel(x, title) {
-    g.strokeStyle = '#7eb6e0';
-    g.lineWidth = 3;
-    g.strokeRect(x, 100, 260, 280);
+  const panels = [
+    {x:40, title:'1. Coats and spades', note:'Cloakroom, then the shed'},
+    {x:320, title:'2. Cupboard', note:'Peek-a-book with Ms Maple'},
+    {x:600, title:'3. Dig', note:'Down, across, and up'}
+  ];
+  panels.forEach((p, i) => {
+    const n = i + 1;
+    const now = focus === n;
+    const done = focus === 0 || (focus > n);
+    g.save();
+    if (!now && !done) g.globalAlpha = 0.4;
+    g.fillStyle = now ? '#fff4c2' : (done ? '#e5f8df' : '#fff');
+    g.fillRect(p.x, 100, 260, 280);
+    g.strokeStyle = now ? '#e2a400' : (done ? '#3c8a45' : '#7eb6e0');
+    g.lineWidth = now ? 8 : 3;
+    g.strokeRect(p.x, 100, 260, 280);
+    g.globalAlpha = 1;
+    g.fillStyle = '#3a2a22';
     g.font = '700 20px Comic Sans MS, Trebuchet MS, sans-serif';
-    g.fillText(title, x + 130, 128);
-  }
-  panel(40, '1. Cupboard');
-  panel(320, '2. Sandpit');
-  panel(600, '3. Run!');
+    g.fillText(p.title, p.x + 130, 132);
+    g.restore();
+    if (done) {
+      g.fillStyle = '#2f8f45';
+      g.font = '800 22px Comic Sans MS, sans-serif';
+      g.fillText('Done', p.x + 130, 168);
+    } else if (now) {
+      g.fillStyle = '#e2a400';
+      g.font = '800 22px Comic Sans MS, sans-serif';
+      g.fillText('Do this', p.x + 130, 168);
+    }
+  });
+  g.fillStyle = '#7a4a28';
+  g.fillRect(90, 200, 34, 78);
+  g.fillStyle = '#2c3d78';
+  g.fillRect(136, 200, 34, 78);
+  g.strokeStyle = '#5c3518';
+  g.lineWidth = 6;
+  g.beginPath();
+  g.moveTo(200, 278); g.lineTo(236, 200);
+  g.stroke();
   g.fillStyle = '#c9843a';
-  g.fillRect(70, 190, 42, 110);
-  g.fillRect(122, 190, 42, 110);
-  g.fillRect(174, 190, 42, 110);
-  g.strokeStyle = '#3a2a22'; g.lineWidth = 3;
-  g.strokeRect(70, 190, 42, 110); g.strokeRect(122, 190, 42, 110); g.strokeRect(174, 190, 42, 110);
+  g.fillRect(224, 192, 24, 10);
+  [390, 438, 486].forEach((x, i) => {
+    g.fillStyle = i === 1 ? '#c9843a' : '#8a5a32';
+    g.fillRect(x, 200, 36, 90);
+    g.strokeStyle = '#3a2a22';
+    g.lineWidth = 2;
+    g.strokeRect(x, 200, 36, 90);
+  });
+  g.font = '28px sans-serif';
+  g.fillText('📖', 456, 248);
+  g.strokeStyle = '#6b4423';
+  g.lineWidth = 8;
+  g.beginPath();
+  g.moveTo(650, 210); g.lineTo(650, 300); g.lineTo(810, 300); g.lineTo(810, 210);
+  g.stroke();
+  g.strokeStyle = '#8a5a32';
+  g.lineWidth = 5;
+  [690, 750].forEach(x => {
+    g.beginPath();
+    g.moveTo(x, 274); g.lineTo(x, 312);
+    g.moveTo(x + 28, 274); g.lineTo(x + 28, 312);
+    g.moveTo(x - 4, 274); g.lineTo(x + 32, 274);
+    g.stroke();
+  });
   g.fillStyle = '#3a2a22';
-  g.font = '22px sans-serif';
-  g.fillText('📖', 143, 250);
   g.font = '700 16px Comic Sans MS, sans-serif';
-  g.fillStyle = '#3a2a22';
-  g.fillText('Peek, then story time', 170, 360);
-  // sand
-  g.fillStyle = '#e6c98a';
-  g.beginPath(); g.ellipse(450, 250, 90, 40, 0, 0, 7); g.fill();
-  g.fillStyle = '#5a4632';
-  g.beginPath(); g.ellipse(450, 260, 28, 16, 0, 0, 7); g.fill();
-  g.strokeStyle = '#3a2a22'; g.lineWidth = 4;
-  g.beginPath(); g.moveTo(390, 200); g.lineTo(410, 270); g.stroke();
-  g.beginPath(); g.moveTo(500, 190); g.lineTo(480, 270); g.stroke();
-  g.fillStyle = '#3a2a22';
-  g.fillText('Dig with spades', 450, 360);
-  // kids running
-  g.fillStyle = '#ff79b0'; g.fillRect(640, 230, 16, 28);
-  g.fillStyle = '#8b6cff'; g.fillRect(670, 214, 16, 44);
-  g.fillStyle = '#3aa0ff'; g.fillRect(700, 242, 14, 18);
-  g.fillStyle = '#ffe14a'; g.fillRect(726, 240, 14, 20);
-  g.strokeStyle = '#67b35a'; g.lineWidth = 3;
-  g.beginPath(); g.moveTo(760, 300); g.lineTo(820, 180); g.lineTo(800, 300); g.stroke();
-  g.fillStyle = '#3a2a22';
-  g.fillText('To the park!', 730, 360);
+  panels.forEach(p => g.fillText(p.note, p.x + 130, 348));
   g.font = '700 22px Comic Sans MS, sans-serif';
-  g.fillText('Then the bus, then Mexico!', w / 2, 440);
+  g.fillStyle = '#3a2a22';
+  const foot = focus === 2
+    ? 'Next: lock the story in the cupboard.'
+    : focus === 3
+      ? 'Now: dig under the playground.'
+      : focus === 0
+        ? 'The way to the park is open.'
+        : 'First: coats from the cloakroom, spades from the shed.';
+  g.fillText(foot, w / 2, 440);
   g.font = '700 18px Comic Sans MS, sans-serif';
   g.fillText('by ' + PLAYABLE.map(id => KIDS[id].name).join(', '), w / 2, 480);
 }
@@ -1691,7 +1791,7 @@ function openBooks() {
             if (!state.items.paper && !state.items.plan) {
               state.items.paper = true;
               save();
-              say([{name:'Mrs Page', text:'Up the rainbow and back again. The box gives you paper!'}]);
+              say([{name:'Mrs Page', text:'Up the rainbow and back again. The box gives you paper! Take it to the classroom table with the pencils.'}]);
             } else say([{name:'Mrs Page', text:'The shelf looks lovely. We already have paper.'}]);
           });
           return;
@@ -2044,17 +2144,21 @@ function openKeySearch() {
       closeModal();
       state.items.key = true;
       save();
-      say([{name:buddy(), text:'The shed key! The caretaker will be glad we found it.'}]);
+      say([{name:buddy(), text:'The shed key! The playground shed will open now.'}], () => maybeShowPlan());
     }
   });
 }
 function openShed() {
-  if ((state.items.spades || 0) >= 2) {
+  if (!state.items.plan) {
+    say([{name:'Caretaker', text: schoolHint()}]);
+    return;
+  }
+  if (spadesReady()) {
     say([{name:'Caretaker', text:'Those two spades are already in the bag.'}]);
     return;
   }
   if (!state.items.key) {
-    say([{name:'Caretaker', text:'The shed is locked. Try the lost-property box in the corridor.'}]);
+    say([{name:'Caretaker', text:'The shed is locked. The shiny key is in the lost-property box.'}]);
     return;
   }
   showCard(card => {
@@ -2069,7 +2173,7 @@ function openShed() {
         state.items.spades = 2;
         save();
         closeModal();
-        say([{name:buddy(), text:'Two spades! The sandpit is next, after the squishies and Ms Maple.'}]);
+        say([{name:buddy(), text:'Two spades! Step 1 is finished once both coats are in the bag as well.'}], () => maybeShowPlan());
       });
       row.append(b);
     });
@@ -2334,34 +2438,153 @@ function openHop() {
     draw();
   });
 }
+function minePoint(p, w, h) {
+  const ground = h * 0.40;
+  const deep = h * 0.76;
+  const x0 = w * 0.24;
+  const x1 = w * 0.78;
+  if (p < 0.3) {
+    const t = p / 0.3;
+    return {x: x0, y: ground - 8 + (deep - (ground - 8)) * t, face: 'down'};
+  }
+  if (p < 0.7) {
+    const t = (p - 0.3) / 0.4;
+    return {x: x0 + (x1 - x0) * t, y: deep, face: 'right'};
+  }
+  const t = Math.min(1, (p - 0.7) / 0.3);
+  return {x: x1, y: deep + (ground - 16 - deep) * t, face: 'up'};
+}
+function drawMine(g, w, h, p) {
+  const ground = h * 0.40;
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  const sky = g.createLinearGradient(0, 0, 0, ground);
+  sky.addColorStop(0, '#8ecbff');
+  sky.addColorStop(1, '#d7f3ff');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, w, ground);
+  g.fillStyle = '#ffe14a';
+  g.beginPath(); g.arc(w * 0.86, 46, 26, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff';
+  g.beginPath(); g.ellipse(w * 0.18, 48, 36, 16, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(w * 0.24, 56, 28, 14, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#f4efe4';
+  g.fillRect(36, ground - 92, 110, 92);
+  g.fillStyle = '#c23b3b';
+  g.beginPath(); g.moveTo(28, ground - 92); g.lineTo(91, ground - 132); g.lineTo(154, ground - 92); g.fill();
+  g.fillStyle = '#9fd4ff';
+  g.fillRect(58, ground - 70, 22, 22);
+  g.fillRect(100, ground - 70, 22, 22);
+  g.fillStyle = '#69c15f';
+  g.fillRect(0, ground - 18, w, 28);
+  g.fillStyle = '#e6c98a';
+  g.beginPath(); g.ellipse(w * 0.24, ground - 4, 70, 22, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#d7c4a2';
+  g.fillRect(w * 0.5 - 16, ground - 118, 32, 118);
+  g.fillStyle = '#8a5a32';
+  g.fillRect(w * 0.5 - 8, ground - 70, 16, 16);
+  const earth = g.createLinearGradient(0, ground, 0, h);
+  earth.addColorStop(0, '#d7a15a');
+  earth.addColorStop(1, '#8a5a32');
+  g.fillStyle = earth;
+  g.fillRect(0, ground + 8, w, h);
+  g.strokeStyle = '#c4a574';
+  g.lineWidth = 78;
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.beginPath();
+  const steps = Math.max(2, Math.floor(p * 28));
+  for (let i = 0; i <= steps; i++) {
+    const pt = minePoint(p * (i / steps), w, h);
+    if (i === 0) g.moveTo(pt.x, pt.y);
+    else g.lineTo(pt.x, pt.y);
+  }
+  g.stroke();
+  g.strokeStyle = '#6b3a1e';
+  g.lineWidth = 8;
+  g.lineCap = 'butt';
+  const supports = 7;
+  for (let i = 1; i < supports; i++) {
+    const at = i / supports;
+    if (at > p) break;
+    const pt = minePoint(at, w, h);
+    g.beginPath();
+    g.moveTo(pt.x - 28, pt.y - 30); g.lineTo(pt.x - 28, pt.y + 30);
+    g.moveTo(pt.x + 28, pt.y - 30); g.lineTo(pt.x + 28, pt.y + 30);
+    g.moveTo(pt.x - 32, pt.y - 30); g.lineTo(pt.x + 32, pt.y - 30);
+    g.stroke();
+  }
+  g.fillStyle = '#3a2a22';
+  g.font = '700 16px Trebuchet MS, sans-serif';
+  g.textAlign = 'center';
+  g.fillText('School', 91, ground - 148);
+  g.fillText('Playground', w * 0.28, 28);
+  g.fillText('Outside', w * 0.9, 78);
+  const kid = minePoint(Math.max(0.02, p), w, h);
+  drawKid(g, kid.x, kid.y + 18, state.leader, kid.face, 0, 0.62, false, false);
+  g.strokeStyle = '#6b3a22';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(kid.x + 16, kid.y + 4);
+  g.lineTo(kid.x + 28, kid.y + 20);
+  g.stroke();
+  g.fillStyle = '#c9843a';
+  g.fillRect(kid.x + 22, kid.y + 16, 16, 6);
+}
 function openDig() {
-  let n = 0;
-  const pit = el('div', {class:'pit'});
-  const status = el('p', {}, 'Tap Dig. 0 / 8');
-  const btn = el('button', {}, 'Dig!');
-  btn.addEventListener('click', () => {
-    n++;
+  const scene = el('canvas', {class:'dig-scene', width:'860', height:'420'});
+  let progress = 0, shown = 0, won = false, stopped = false, last = performance.now(), raf = 0;
+  const status = el('p', {}, 'Tap Dig. The tunnel goes down, across, and back up.');
+  const btn = el('button', {class:'dig-go'}, 'Dig down');
+  function labelFor(p) {
+    if (p < 0.3) return 'Dig down';
+    if (p < 0.7) return 'Dig across';
+    if (p < 1) return 'Dig up';
+    return 'Through!';
+  }
+  listenDown(btn, e => {
+    if (e && e.cancelable) e.preventDefault();
+    if (won || progress >= 1) return;
+    progress = Math.min(1, progress + 0.125);
     sfx('dig');
-    const sand = el('div', {}, '⛏️');
-    sand.style.position = 'absolute';
-    sand.style.left = (20 + (n * 37) % 200) + 'px';
-    sand.style.top = (40 + n * 12) + 'px';
-    pit.append(sand);
-    status.textContent = n + ' / 8';
-    if (n >= 8) {
-      state.flags.tunnelOpen = true;
-      save();
-      succeed(pit, () => {
+    btn.textContent = labelFor(progress >= 1 ? 1 : progress);
+    status.textContent = progress < 0.3
+      ? 'Down into the sand.'
+      : progress < 0.7
+        ? 'Across under the playground.'
+        : progress < 1
+          ? 'Up into the daylight.'
+          : 'The mine tunnel is open!';
+    if (progress >= 1 && !won) {
+      won = true;
+      btn.disabled = true;
+      succeed(btn, () => {
+        state.flags.tunnelOpen = true;
+        save();
         closeModal();
-        say([{name:kidName(), text:'The hole is deep enough. Let us crawl through!'}]);
+        const waiting = countSet('school') < 7;
+        say([{name:kidName(), text: waiting
+          ? 'We dug down, across, and up. The tunnel is open. School squishies still to find: ' + countSet('school') + ' / 7.'
+          : 'We dug down, across, and up. Let us crawl through!'}]);
       });
     }
   });
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    shown += (progress - shown) * Math.min(1, dt * 5);
+    drawMine(scene.getContext('2d'), scene.width, scene.height, Math.max(0.04, shown));
+    if (!stopped && scene.isConnected) raf = requestAnimationFrame(loop);
+  }
   showCard(card => {
     card.append(el('h2', {}, 'Dig the tunnel'));
-    card.append(el('p', {}, 'Two spades. Eight big scoops.'));
-    card.append(pit); card.append(status); card.append(btn); addBack(card);
+    card.append(el('p', {}, kidName() + ' digs a mine under the playground. Wooden supports hold the roof.'));
+    card.append(scene);
+    card.append(status);
+    card.append(btn);
+    addBack(card);
   });
+  raf = requestAnimationFrame(loop);
+  trackMini(() => { stopped = true; cancelAnimationFrame(raf); });
 }
 function openPassport() {
   const rounds = [
@@ -2736,10 +2959,17 @@ function openPiano() {
   });
 }
 function trySand() {
-  if (state.flags.tunnelOpen) { finishLevel(); return; }
+  if (state.flags.tunnelOpen) {
+    if (countSet('school') < 7) {
+      say([{name:buddy(), text:'The tunnel is open. We still need every school squishy (' + countSet('school') + '/7) before we crawl through.'}]);
+      return;
+    }
+    finishLevel();
+    return;
+  }
   const need = digBlockers();
   if (need.length) {
-    say([{name:buddy(), text:'The sand is not ready. We still need ' + need.join(', ') + '.'}]);
+    say([{name:buddy(), text:'The sand is not ready. ' + schoolHint()}]);
     return;
   }
   openDig();
@@ -2861,7 +3091,7 @@ function openStoryPeek() {
       say([
         {name:'Ms Maple', text:'What a lovely game. I shall read one quiet story.'},
         {name:kidName(), text:'The cupboard door is shut. She is happy with her book.'}
-      ]);
+      ], () => maybeShowPlan());
     });
   });
   showCard(card => {
@@ -2917,7 +3147,7 @@ function buildRooms() {
         id:'pencils', x:730, y:180, range:78,
         prompt(){ return (!state.items.pencils && !state.items.plan) ? 'Pencils' : null; },
         sparkle(){ return !state.items.pencils && !state.items.plan; },
-        use(){ state.items.pencils = true; save(); say([{name:kidName(), text:'A whole pot of pencils. Now we can draw.'}]); },
+        use(){ state.items.pencils = true; save(); say([{name:kidName(), text: state.items.paper ? 'Pencils! Paper is ready too. The classroom table can draw the plan.' : 'A whole pot of pencils. Paper is still in the library.'}]); },
         draw(g){
           if (state.items.pencils || state.items.plan) return;
           roundRect(g, 716, 112, 28, 22, 4); fillStroke(g, '#e23b3b');
@@ -2943,23 +3173,30 @@ function buildRooms() {
           state.items.pencils = false;
           state.items.plan = true;
           state.flags.planRead = true;
+          state.flags.planStep1 = true;
           save();
           openPlan();
         },
         draw(g){ drawLabel(g, 710, 248, 'Plan table'); }
       }),
       squish('pink', 175, 400),
-      talker('finn', 400, 210, 'finn', 'Finn', [
-        'I am staying for art club. Have a good adventure!',
-        'Something pink is hiding by the desks.',
-        'Mrs Page keeps the paper in the library.'
-      ]),
+      talker('finn', 400, 210, 'finn', 'Finn', () => schoolLines({
+        materials: 'I am staying for art club. Mrs Page keeps the paper, and the red pot has pencils.',
+        gear: 'Both coats hang in the cloakroom. The shed outside has the spades.',
+        teacher: 'The cupboard door is in the corridor. Ms Maple likes a story.',
+        dig: 'The sandpit is just outside. Dig down, then across, then up.',
+        leave: 'The pink squishy hides by the desks. Then crawl through the tunnel.'
+      })),
       prop({
         id:'maple', x:790, y:200, range:74,
         prompt(){ return state.flags.teacherLocked ? null : 'Talk'; },
         use(){ say([
-          {name:'Ms Maple', text:'Pencils live in the red pot.'},
-          {name:'Ms Maple', text:'Play peek-a-book at the cupboard door. Then I can read a quiet story.'}
+          {name:'Ms Maple', text: schoolHint()},
+          {name:'Ms Maple', text: schoolPhase() === 'teacher'
+            ? 'I will be at the cupboard door. Tap the one I peek from.'
+            : schoolPhase() === 'materials'
+              ? 'The red pot on my desk has the pencils.'
+              : 'Coats and spades come before my story.'}
         ]); },
         draw(g){
           if (state.flags.teacherLocked) return;
@@ -2982,7 +3219,9 @@ function buildRooms() {
           save();
           say([
             {name:kidName(), text:'The cage opens. Nibbles zooms once around the room, then hops back in for a seed.'},
-            {name:'Ms Maple', text:'Good hamster. I am off for a story when you have played peek-a-book.'}
+            {name:'Ms Maple', text: schoolPhase() === 'teacher'
+              ? 'Good hamster. I am ready for peek-a-book at the cupboard.'
+              : 'Good hamster. ' + schoolHint()}
           ]);
         },
         draw(g){
@@ -3016,25 +3255,32 @@ function buildRooms() {
       id:'lost', x:120, y:300, range:74,
       prompt(){ return state.items.key ? 'Socks' : 'Search'; },
       sparkle(){ return !state.items.key; },
-      use(){ if (state.items.key) say([{name:buddy(), text:'Just odd socks left in the box.'}]); else openKeySearch(); },
+      use(){
+        if (!state.items.plan) { say([{name:buddy(), text: schoolHint()}]); return; }
+        if (state.items.key) say([{name:buddy(), text:'Just odd socks left in the box.'}]);
+        else openKeySearch();
+      },
       draw(g){ roundRect(g, 96, 270, 48, 36, 6); fillStroke(g, '#c9843a'); drawLabel(g, 120, 250, 'Lost box'); }
     }),
-    talker('oak', 500, 270, 'adult', 'Mr Oak', [
-      'Lost something shiny? Try the lost-property box.',
-      'The shed key is extra shiny.',
-      'The notice has a little map.'
-    ], {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
-    sign('notice', 860, 280, 'Map', [
-      'Library: paper. Classroom: pencils, the plan, and a hamster star.',
-      'Cloakroom: both grown-up coats, on the pegs.',
-      'Cupboard door: play peek-a-book, then story time.',
-      'Music: the gold squishy. Outside: shed, slide and sandpit.'
-    ], {color:'#fff3b0'}),
+    talker('oak', 500, 270, 'adult', 'Mr Oak', () => schoolLines({
+      materials: 'Paper is in the library. Pencils are in the classroom. The notice has a map.',
+      gear: 'The shed key is extra shiny, in the lost-property box. Coats are in the cloakroom.',
+      teacher: 'The cupboard door is along this corridor. Play peek-a-book there.',
+      dig: 'Outside, the sandpit is ready for the tunnel.',
+      leave: 'The tunnel is open on the playground. Mind the squishies.'
+    }), {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
+    sign('notice', 860, 280, 'Map', () => [schoolHint()], {color:'#fff3b0'}),
     prop({
       id:'cupdoor', x:480, y:430, range:74,
       prompt(){ return state.flags.teacherLocked ? 'Shh' : 'Peek'; },
       sparkle(){ return !state.flags.teacherLocked; },
-      use: openStoryPeek,
+      use() {
+        if (schoolPhase() === 'materials' || schoolPhase() === 'gear') {
+          say([{name:buddy(), text: schoolHint()}]);
+          return;
+        }
+        openStoryPeek();
+      },
       draw(g){
         drawDoor(g, 480, 400, 'Cupboard');
         if (state.flags.teacherLocked) {
@@ -3072,10 +3318,13 @@ function buildRooms() {
         });
       }),
       squish('yellow', 700, 180),
-      talker('page', 250, 300, 'adult', 'Mrs Page', [
-        'Books shuffle. Tap the colour on the sign, then the colours come back again.',
-        'The yellow squishy likes the right-hand shelf.'
-      ], {shirt:'#d98a4a', pants:'#6a4030', hair:'#6b3a22', bun:true}),
+      talker('page', 250, 300, 'adult', 'Mrs Page', () => schoolLines({
+        materials: 'Play the book game on the shelf. The paper is the prize. The yellow squishy likes the right-hand shelf.',
+        gear: 'Step 1 is coats in the cloakroom and spades in the outside shed.',
+        teacher: 'Step 2 is peek-a-book at the corridor cupboard.',
+        dig: 'Step 3 is the sandpit outside. Dig down, across, and up.',
+        leave: 'The yellow squishy likes the right-hand shelf, if you still need it.'
+      }), {shirt:'#d98a4a', pants:'#6a4030', hair:'#6b3a22', bun:true}),
       back('library', 'Corridor', 'corridor')
     ]
   }));
@@ -3089,6 +3338,10 @@ function buildRooms() {
         prompt(){ return (state.items.coatMaple && state.items.coatButton) ? 'Pegs' : 'Take coats'; },
         sparkle(){ return !(state.items.coatMaple && state.items.coatButton); },
         use(){
+          if (!state.items.plan) {
+            say([{name:buddy(), text: schoolHint()}]);
+            return;
+          }
           if (state.items.coatMaple && state.items.coatButton) {
             say([{name:kidName(), text:'The pegs are empty. Both coats are already in the bag.'}]);
             return;
@@ -3096,7 +3349,7 @@ function buildRooms() {
           state.items.coatMaple = true;
           state.items.coatButton = true;
           save();
-          say([{name:buddy(), text:"Both coats in one go! Ms Maple's brown coat and Miss Button's blue coat. Axel can stand on Ava, and Hallie on Darcey."}]);
+          say([{name:buddy(), text:"Both coats in one go! Ms Maple's brown coat and Miss Button's blue coat. Axel can stand on Ava, and Hallie on Darcey."}], () => maybeShowPlan());
         },
         draw(g){
           g.strokeStyle = '#6b4423';
@@ -3128,7 +3381,13 @@ function buildRooms() {
     entities:[
       blocker('counter', 80, 70, 800, 50, '#e7d3b0'),
       station('lunch', 620, 220, 'Lunch game', 'purple', openFoods),
-      talker('lucy', 400, 220, 'adult', 'Lunch Lucy', ['Foods ride past. Tap the one that matches the big picture.', 'Apples today. Axel may have one.'], {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
+      talker('lucy', 400, 220, 'adult', 'Lunch Lucy', () => schoolLines({
+        materials: 'After the plan, come back. Foods ride past and the purple squishy is the prize.',
+        gear: 'The cloakroom coats and the shed spades come before lunch adventures.',
+        teacher: 'Ms Maple is waiting at the cupboard for peek-a-book.',
+        dig: 'The sandpit tunnel is the way out. Apples can wait.',
+        leave: 'Foods ride past. Tap the one that matches the big picture.'
+      }), {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
       back('canteen', 'Corridor', 'corridor')
     ]
   }));
@@ -3141,7 +3400,13 @@ function buildRooms() {
         g.strokeStyle = '#e23b3b'; g.lineWidth = 6;
         g.beginPath(); g.arc(x, y - 10, 26, 0, Math.PI * 2); g.stroke();
       }),
-      talker('coach', 700, 240, 'adult', 'Coach', ['Four beanbags in the hoop, if you please.', 'An orange squishy is the prize.'], {shirt:'#ff5a5a', pants:'#2a2a2a', hair:'#222'}),
+      talker('coach', 700, 240, 'adult', 'Coach', () => schoolLines({
+        materials: 'Make the plan first. The beanbags can wait, and an orange squishy is their prize.',
+        gear: 'Coats from the cloakroom. Spades from the shed outside.',
+        teacher: 'Peek-a-book at the cupboard, then come back and throw beanbags.',
+        dig: 'The sandpit is outside. That is the tunnel.',
+        leave: 'Four beanbags in the hoop. An orange squishy is the prize.'
+      }), {shirt:'#ff5a5a', pants:'#2a2a2a', hair:'#222'}),
       back('hall', 'Corridor', 'corridor')
     ]
   }));
@@ -3153,7 +3418,13 @@ function buildRooms() {
       station('easel', 520, 230, 'Paint', 'red', openPaint, (g, x, y) => {
         roundRect(g, x - 28, y - 40, 56, 44, 4); fillStroke(g, '#fff');
       }),
-      talker('dot', 220, 250, 'adult', 'Miss Dot', ['Find the square that does not match, then fix the colour.', 'A red squishy is drying behind it.'], {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
+      talker('dot', 220, 250, 'adult', 'Miss Dot', () => schoolLines({
+        materials: 'Paper and pencils make the plan. The painting can wait.',
+        gear: 'Step 1 is still the coats and the spades.',
+        teacher: 'Step 2 is Ms Maple and the cupboard door.',
+        dig: 'Step 3 is digging the sandpit tunnel.',
+        leave: 'Find the square that does not match. A red squishy is drying behind it.'
+      }), {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
       back('art', 'Corridor', 'corridor')
     ]
   }));
@@ -3163,7 +3434,13 @@ function buildRooms() {
     spawns:{default:{x:480, y:340}},
     entities:[
       rareChest('goldchest', 560, 240, 'gold', 'Bells', openBells),
-      talker('tune', 240, 250, 'adult', 'Mr Tune', ['Tap the animal that shines. The dim one is a trick, and it gets faster.', 'The gold chest opens if you keep up.'], {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
+      talker('tune', 240, 250, 'adult', 'Mr Tune', () => schoolLines({
+        materials: 'The plan comes before the bells. Paper and pencils first.',
+        gear: 'Coats and spades are Step 1. The gold chest can wait.',
+        teacher: 'Peek-a-book is Step 2, at the cupboard in the corridor.',
+        dig: 'The sandpit tunnel is Step 3.',
+        leave: 'Tap the animal that shines. The gold chest opens if you keep up.'
+      }), {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
       back('music', 'Corridor', 'corridor')
     ]
   }));
@@ -3204,11 +3481,13 @@ function buildRooms() {
         g.fillStyle = '#4aa8ff';
         g.beginPath(); g.moveTo(x - 30, y - 40); g.lineTo(x + 40, y + 20); g.lineTo(x + 10, y + 20); g.fill();
       }),
-      talker('care', 360, 190, 'adult', 'Caretaker', [
-        'The shed key lives in lost property.',
-        'Inside, pick the spade. We have two.',
-        'Dig the sand only when your plan says so.'
-      ], {shirt:'#4aa35a', pants:'#3d3428', hair:'#333', cap:'#3d3428'}),
+      talker('care', 360, 190, 'adult', 'Caretaker', () => schoolLines({
+        materials: 'Draw the plan before you touch my shed.',
+        gear: 'The shed key is in lost property. Inside, take the two spades. Coats are back in the cloakroom.',
+        teacher: 'Spades can wait in the bag. Step 2 is the cupboard.',
+        dig: 'The sandpit is ready. Dig down, across under the playground, and up.',
+        leave: 'The hole is open. Crawl through when the squishies are packed.'
+      }), {shirt:'#4aa35a', pants:'#3d3428', hair:'#333', cap:'#3d3428'}),
       sign('flower', 220, 430, 'Flower', 'A star sticker was on the biggest daisy.', {star:'starFlower', color:'#ff8fb3'})
     ]
   }));
