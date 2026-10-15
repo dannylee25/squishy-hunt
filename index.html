@@ -2174,7 +2174,91 @@ function openBeanbag() {
   });
 }
 function openPaint() {
-  openQuiz('sum', () => grantSquishy('red', 'Miss Dot', 'The sum is right! A red squishy pops out!'));
+  const rounds = [
+    {art:['#ff5a5a','#ffe14a','#4aa8ff','#67d36a'], odd:2, wrong:'#ff9a3c'},
+    {art:['#b07cff','#ff9a3c','#ff9a3c','#4aa8ff'], odd:0, wrong:'#ff5a5a'},
+    {art:['#67d36a','#ffe14a','#4aa8ff','#ff5a5a'], odd:3, wrong:'#ff9a3c'},
+    {art:['#4aa8ff','#67d36a','#ffe14a','#b07cff','#ff5a5a','#ff9a3c'], odd:4, wrong:'#ff7a4a'},
+    {art:['#ffe14a','#fff3a0','#4aa8ff','#67d36a','#ff5a5a','#b07cff'], odd:1, wrong:'#ffe14a'},
+    {art:['#ff5a5a','#ff9a3c','#ffe14a','#67d36a','#4aa8ff','#b07cff'], odd:5, wrong:'#7a5cff'}
+  ];
+  const pots = ['#ff5a5a','#ff9a3c','#ff7a4a','#ffe14a','#fff3a0','#67d36a','#4aa8ff','#b07cff','#7a5cff'];
+  let round = 0, phase = 'find', alive = true;
+  const hers = el('div', {class:'board n4'});
+  const yours = el('div', {class:'board n4'});
+  const pal = el('div', {class:'choices'});
+  const status = el('p', {}, 'Tap the square on your painting that does not match.');
+  function cell(color) {
+    const b = el('button', {class:'choice'});
+    b.style.background = color;
+    return b;
+  }
+  function draw() {
+    const spec = rounds[round];
+    const wide = spec.art.length > 4;
+    hers.className = 'board ' + (wide ? 'n6' : 'n4');
+    yours.className = 'board ' + (wide ? 'n6' : 'n4');
+    hers.replaceChildren();
+    yours.replaceChildren();
+    spec.art.forEach((color, i) => {
+      hers.append(cell(color));
+      const mine = cell(i === spec.odd ? spec.wrong : color);
+      listenDown(mine, e => {
+        if (e.cancelable) e.preventDefault();
+        if (!alive || phase !== 'find') return;
+        if (i !== spec.odd) {
+          sfx('no');
+          mine.classList.add('shake');
+          status.textContent = 'That square matches. Find the odd one.';
+          return;
+        }
+        sfx('ok');
+        phase = 'fix';
+        mine.style.outline = '4px solid #ffcf33';
+        status.textContent = 'Now tap the colour that fixes it.';
+      });
+      yours.append(mine);
+    });
+  }
+  pots.forEach(color => {
+    const b = el('button', {class:'choice'});
+    b.style.background = color;
+    listenDown(b, e => {
+      if (e.cancelable) e.preventDefault();
+      if (!alive || phase !== 'fix') {
+        if (alive && phase === 'find') status.textContent = 'Find the odd square first.';
+        return;
+      }
+      if (color !== rounds[round].art[rounds[round].odd]) {
+        sfx('no');
+        b.classList.add('shake');
+        status.textContent = 'That is not the matching colour.';
+        return;
+      }
+      sfx('ok');
+      round++;
+      if (round >= rounds.length) {
+        alive = false;
+        succeed(yours, () => grantSquishy('red', 'Miss Dot', 'You fixed every painting! A red squishy pops out!'));
+        return;
+      }
+      phase = 'find';
+      status.textContent = 'Next painting. Find the odd square. ' + (round + 1) + ' / ' + rounds.length;
+      draw();
+    });
+    pal.append(b);
+  });
+  showCard(card => {
+    card.append(el('h2', {}, 'Fix the painting'));
+    card.append(el('p', {}, 'Miss Dot’s picture stays on the left. Find the square that is wrong, then tap the colour that fixes it.'));
+    const boards = el('div', {class:'boards'});
+    boards.append(hers, yours);
+    card.append(boards);
+    card.append(status);
+    card.append(pal);
+    addBack(card);
+  });
+  draw();
 }
 function openKeySearch() {
   const stuff = [
