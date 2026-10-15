@@ -170,6 +170,8 @@
   #err { display:none; position:fixed; z-index:80; left:0; right:0; bottom:0; background:#ffd6d6; color:#600; padding:8px; white-space:pre-wrap; font-size:12px; }
   #autotest { position:fixed; z-index:70; left:8px; bottom:8px; background:#fff; padding:8px; max-width:90vw; }
   .plan { width:100%; height:auto; background:#fff8e6; border:3px solid var(--ink); border-radius:12px; }
+  #modal.ending { align-items:flex-start; background:transparent; }
+  #modal.ending .card { max-width:640px; margin-top:8px; }
   @keyframes shake { 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
   .shake { animation:shake .28s; }
   @media (min-width:721px) { #midbtns .ico { display:none; } }
@@ -435,7 +437,7 @@ function showCard(build) {
   freezeInput();
   modalOpen = true;
   const modal = document.getElementById('modal');
-  modal.classList.remove('hidden');
+  modal.classList.remove('hidden', 'ending');
   modal.replaceChildren();
   const card = el('div', {class:'card'});
   modal.append(card);
@@ -445,6 +447,7 @@ function closeModal() {
   cleanupMini();
   modalOpen = false;
   const modal = document.getElementById('modal');
+  modal.classList.remove('ending');
   modal.classList.add('hidden');
   modal.replaceChildren();
 }
@@ -1164,12 +1167,13 @@ function showEnding() {
   mode = 'ending';
   showCard(card => {
     card.append(el('h2', {}, 'Mexico!'));
-    card.append(el('p', {}, 'The plane lands in the sun. Every squishy wriggles hello. Ava, Darcey, Axel and Hallie did it together.'));
+    card.append(el('p', {}, 'The water park is open. Ava, Darcey, Axel and Hallie are lying by the pool.'));
     card.append(el('p', {}, 'School ' + countSet('school') + '/7    Park ' + countSet('park') + '/7    Airport ' + countSet('air') + '/7    Stars ' + (state.stars || 0) + '/9'));
     const b = el('button', {}, 'Play again');
     b.addEventListener('click', () => { mode = 'title'; openTitle(); });
     card.append(b);
   });
+  document.getElementById('modal').classList.add('ending');
 }
 
 function portrait(id, big) {
@@ -3880,22 +3884,99 @@ function renderAttract(g, w, h) {
     drawKid(g, x, h * 0.62, id, Math.sin(time * 0.4) > 0 ? 'right' : 'left', Math.sin(time * 6 + i) * 2, sc, false, false);
   });
 }
+function drawWaterPark(g, w, h) {
+  g.fillStyle = '#7fd0ff';
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = '#ffe14a';
+  g.beginPath(); g.arc(w - 78, 58, 34, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.92)';
+  [[120, 48, 46], [250, 78, 32], [w * 0.55, 40, 40]].forEach(([x, y, r]) => {
+    g.beginPath(); g.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(x + r * 0.7, y + 6, r * 0.72, r * 0.5, 0, 0, Math.PI * 2); g.fill();
+  });
+  g.fillStyle = '#8fd36a';
+  g.fillRect(0, h * 0.34, w, h);
+  g.fillStyle = '#f6e2bc';
+  g.fillRect(0, h * 0.42, w, h);
+
+  function palm(x, y, tall) {
+    g.fillStyle = '#c9843a';
+    g.fillRect(x, y, 12, tall);
+    g.fillStyle = '#2f9e55';
+    g.beginPath(); g.ellipse(x + 6, y + 4, 34, 12, -0.5, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(x + 6, y + 4, 34, 12, 0.5, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(x + 6, y - 2, 16, 22, 0, 0, Math.PI * 2); g.fill();
+  }
+  palm(28, h * 0.22, 90);
+  palm(w - 52, h * 0.2, 100);
+
+  function chute(x, y, drop, color) {
+    roundRect(g, x, y, 54, drop * 0.72, 6);
+    fillStroke(g, '#fff8e8');
+    g.fillStyle = color;
+    g.beginPath();
+    g.moveTo(x - 6, y + 10); g.lineTo(x + 27, y - 18); g.lineTo(x + 60, y + 10);
+    g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = '#6b5344'; g.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      g.beginPath();
+      g.moveTo(x + 8, y + 18 + i * 16); g.lineTo(x + 46, y + 18 + i * 16); g.stroke();
+    }
+    g.strokeStyle = color; g.lineWidth = 18; g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(x + 50, y + 24);
+    g.quadraticCurveTo(x + drop * 0.85, y + 8, x + drop * 1.15, y + drop * 0.78);
+    g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 4;
+    g.stroke();
+  }
+  chute(w * 0.1, h * 0.1, h * 0.42, '#ff7a59');
+  chute(w * 0.72, h * 0.12, h * 0.36, '#4aa8ff');
+
+  const poolX = w * 0.16, poolY = h * 0.4, poolW = w * 0.68, poolH = h * 0.24;
+  roundRect(g, poolX - 10, poolY - 10, poolW + 20, poolH + 20, 28);
+  fillStroke(g, '#d7c4a2', 3);
+  roundRect(g, poolX, poolY, poolW, poolH, 22);
+  fillStroke(g, '#2f8fff', 3);
+  g.fillStyle = 'rgba(255,255,255,.35)';
+  g.beginPath(); g.ellipse(poolX + poolW * 0.35, poolY + poolH * 0.38, poolW * 0.22, 8, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(poolX + poolW * 0.62, poolY + poolH * 0.62, poolW * 0.16, 6, 0, 0, Math.PI * 2); g.fill();
+  g.save();
+  g.translate(poolX + poolW * 0.78, poolY + poolH * 0.42);
+  g.fillStyle = '#ff5a7a';
+  g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff';
+  g.beginPath(); g.arc(0, 0, 8, 0, Math.PI * 2); g.fill();
+  g.restore();
+
+  const bedY = poolY + poolH + h * 0.08;
+  PLAYABLE.forEach((id, i) => {
+    const natural = 48 + 86 * (KIDS[id].scale || 1);
+    const len = Math.min(natural, w * 0.22);
+    const slot = w / 4;
+    const x = slot * i + (slot - len) / 2;
+    const y = bedY;
+    const cloth = ['#ffcf33', '#ff8f6b', '#7dce6a', '#8fd3ff'][i];
+    g.fillStyle = '#6b5344';
+    g.fillRect(x + 16, y + 16, 7, 18);
+    g.fillRect(x + len - 24, y + 16, 7, 18);
+    roundRect(g, x, y - 8, len, 30, 10);
+    fillStroke(g, cloth, 3);
+    g.fillStyle = '#fff';
+    roundRect(g, x + 6, y - 2, 22, 18, 6); g.fill();
+    g.strokeStyle = '#3a2a22'; g.stroke();
+    const extra = Math.max(0.42, Math.min(1, (len - 30) / (78 * (KIDS[id].scale || 1))));
+    g.save();
+    g.translate(x + len - 34, y + 8);
+    g.rotate(-Math.PI / 2);
+    drawKid(g, 0, 0, id, 'down', 0, extra, false, false);
+    g.restore();
+    drawLabel(g, x + len / 2, y + 42, KIDS[id].name);
+  });
+}
 function renderBeach(g, w, h) {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.fillStyle = '#8ecbff';
-  g.fillRect(0, 0, w, h * 0.45);
-  g.fillStyle = '#2f6fed';
-  g.fillRect(0, h * 0.45, w, h * 0.2);
-  g.fillStyle = '#f0d59a';
-  g.fillRect(0, h * 0.62, w, h);
-  g.fillStyle = '#ffe14a';
-  g.beginPath(); g.arc(80, 70, 30, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#3aaa6a';
-  g.fillRect(w - 90, h * 0.5, 16, 70);
-  g.beginPath(); g.ellipse(w - 70, h * 0.48, 28, 16, 0, 0, Math.PI * 2); g.fill();
-  const sc = Math.min(1.2, w / 900);
-  PLAYABLE.forEach((id, i) => drawKid(g, w * (0.2 + i * 0.12), h * 0.78, id, 'right', 0, sc, false, false));
-  SQUISHIES.forEach((s, i) => drawSquishy(g, 30 + (i % 11) * (w / 12), h * 0.9, s.id, 0.55));
+  drawWaterPark(g, w, h);
 }
 function updateHud() {
   const hud = document.getElementById('hud');
