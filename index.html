@@ -89,6 +89,14 @@
   .skybox, .pondbox, .pit { position:relative; height:180px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#b9e6ff; margin:8px 0; }
   .pondbox { background:#7ec8ea; }
   .pit { background:#f0d59a; height:220px; }
+  .slide-stage { position:relative; height:260px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#d7f3ff; margin:8px 0; touch-action:manipulation; }
+  .slide-stage.coral { background:#ffe4d8; }
+  .slide-tower { position:absolute; left:3%; top:6%; width:58px; height:64px; background:#f7f1e4; border:3px solid var(--ink); border-radius:10px 10px 0 0; pointer-events:none; z-index:1; }
+  .slide-ladder { position:absolute; left:5.2%; top:30%; width:26px; bottom:8%; border-left:4px solid var(--ink); border-right:4px solid var(--ink); background:repeating-linear-gradient(#c9843a 0 5px, transparent 5px 16px); pointer-events:none; }
+  .slide-ramp { position:absolute; border-radius:14px; border:3px solid var(--ink); transform-origin:left center; box-shadow:inset 0 6px 0 rgba(255,255,255,.45); }
+  .slide-kid { position:absolute; z-index:3; font-size:46px; line-height:1; width:48px; margin-left:-24px; margin-top:-42px; text-align:center; pointer-events:none; transform-origin:50% 100%; transform:rotate(16deg); }
+  .slide-prize { position:absolute; z-index:2; width:54px; height:48px; margin-left:-27px; margin-top:-44px; border-radius:50%; border:3px solid var(--ink); pointer-events:none; box-shadow:0 0 0 4px rgba(255,207,51,.9); }
+  .card > button.slide-grab { min-width:220px; min-height:84px; font-size:32px; padding:12px 28px; background:var(--yellow); }
   .mover { position:absolute; font-size:42px; }
   .mem { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .swatch { width:84px; height:64px; margin:6px auto; border:3px solid var(--ink); border-radius:14px; }
@@ -1987,30 +1995,74 @@ function openRoundabout() {
   trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openSlide(kind) {
-  const btn = el('button', {}, 'Slide!');
-  const track = el('div', {class:'pit'});
-  const rider = el('div', {class:'mover'}, '🧒');
-  rider.style.left = '12px'; rider.style.top = '12px';
-  track.append(rider);
-  btn.addEventListener('click', () => {
-    btn.disabled = true;
-    rider.style.transition = 'top 1s linear, left 1s linear';
-    rider.style.left = '75%';
-    rider.style.top = '140px';
-    setTimeout(() => {
-      const grab = el('button', {}, kind === 'blue' ? 'Grab blue!' : 'Grab coral!');
-      grab.addEventListener('click', () => {
-        if (kind === 'blue') grantSquishy('blue', kidName(), 'The blue squishy was at the bottom of the slide!');
-        else grantSquishy('coral', kidName(), 'The coral squishy was waiting in the sand!');
+  const coral = kind === 'coral';
+  const color = coral ? '#ff7f6e' : '#4aa8ff';
+  const prizeAt = 0.58;
+  const span = 0.15;
+  const trip = 2.8;
+  let t = 0, alive = true, last = performance.now();
+  const stage = el('div', {class:'slide-stage' + (coral ? ' coral' : '')});
+  const ramp = el('div', {class:'slide-ramp'});
+  ramp.style.background = color;
+  ramp.style.left = '8%';
+  ramp.style.top = '18%';
+  ramp.style.width = '72%';
+  ramp.style.height = '28px';
+  ramp.style.transform = 'rotate(16deg)';
+  const prize = el('div', {class:'slide-prize'});
+  prize.style.background = color;
+  const kid = el('div', {class:'slide-kid'}, '🧒');
+  stage.append(el('div', {class:'slide-ladder'}), el('div', {class:'slide-tower'}), ramp, prize, kid);
+  const status = el('p', {}, 'Tap Grab as the child slides past the squishy.');
+  const btn = el('button', {class:'slide-grab'}, 'Grab!');
+  function place(node, p) {
+    const w = stage.clientWidth || 520;
+    const h = stage.clientHeight || 260;
+    const ang = 16 * Math.PI / 180;
+    const along = w * 0.72 * p;
+    node.style.left = (w * 0.08 + Math.cos(ang) * along - 14 * Math.sin(ang)) + 'px';
+    node.style.top = (h * 0.18 + 14 + Math.sin(ang) * along - 14 * Math.cos(ang)) + 'px';
+  }
+  function grab(e) {
+    if (e && e.cancelable) e.preventDefault();
+    if (!alive) return;
+    if (Math.abs(t - prizeAt) <= span) {
+      alive = false;
+      sfx('ok');
+      place(kid, prizeAt);
+      kid.textContent = '🧒✨';
+      status.textContent = 'Got it!';
+      succeed(stage, () => {
+        if (coral) grantSquishy('coral', kidName(), 'You grabbed the coral squishy as you slid past!');
+        else grantSquishy('blue', kidName(), 'You grabbed the blue squishy on the way down!');
       });
-      track.append(grab);
-    }, 1000);
-  });
+      return;
+    }
+    sfx('no');
+    status.textContent = t < prizeAt ? 'Not yet. Wait until they reach the squishy.' : 'Too late! Here they come again.';
+  }
+  listenDown(btn, grab);
+  listenDown(stage, grab);
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    t += dt / trip;
+    if (t > 1) t = 0;
+    place(prize, prizeAt);
+    place(kid, t);
+    requestAnimationFrame(loop);
+  }
   showCard(card => {
-    card.append(el('h2', {}, 'Slide'));
-    card.append(el('p', {}, 'Slide down, then grab the squishy.'));
-    card.append(track); card.append(btn); addBack(card);
+    card.append(el('h2', {}, coral ? 'Park slide' : 'Playground slide'));
+    card.append(el('p', {}, 'The child keeps sliding. Tap Grab when they pass the squishy.'));
+    card.append(stage);
+    card.append(status);
+    card.append(btn);
+    addBack(card);
   });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openDucks() {
   let hits = 0, alive = true, last = performance.now(), t = 0;
