@@ -469,9 +469,9 @@ function floatText(text, x, y, color) {
   floats.push({text, x, y, life:1.35, color: color || '#3a2a22'});
 }
 
-function roundRect(g, x, y, w, h, r) {
+function roundRect(g, x, y, w, h, r, add) {
   r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
-  g.beginPath();
+  if (!add) g.beginPath();
   g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r);
   g.arcTo(x + w, y + h, x, y + h, r);
@@ -903,10 +903,13 @@ function prop(o) {
 }
 function hits(x, y, r, rects) {
   for (const s of rects) {
-    const cx = Math.max(s.x, Math.min(x, s.x + s.w));
-    const cy = Math.max(s.y, Math.min(y, s.y + s.h));
+    const rad = s.round ? Math.min(s.round, s.w / 2, s.h / 2) : 0;
+    const rr = rad + r;
+    const ex = s.x - r, ey = s.y - r, ew = s.w + r * 2, eh = s.h + r * 2;
+    const cx = Math.max(ex + rr, Math.min(x, ex + ew - rr));
+    const cy = Math.max(ey + rr, Math.min(y, ey + eh - rr));
     const dx = x - cx, dy = y - cy;
-    if (dx * dx + dy * dy < r * r) return true;
+    if (dx * dx + dy * dy < rr * rr) return true;
   }
   return false;
 }
@@ -3361,17 +3364,14 @@ function buildRooms() {
       g.fillRect(0, 0, 960, 540);
     },
     hedges:[
-      {x:48,y:32,w:24,h:118},{x:48,y:150,w:24,h:118},{x:48,y:268,w:24,h:118},{x:48,y:386,w:24,h:118},
-      {x:216,y:32,w:24,h:118},{x:216,y:150,w:24,h:23},{x:216,y:245,w:24,h:23},{x:216,y:268,w:24,h:118},{x:216,y:386,w:24,h:23},{x:216,y:481,w:24,h:23},
-      {x:384,y:32,w:24,h:23},{x:384,y:127,w:24,h:23},{x:384,y:150,w:24,h:23},{x:384,y:245,w:24,h:23},{x:384,y:268,w:24,h:23},{x:384,y:363,w:24,h:23},{x:384,y:386,w:24,h:118},
-      {x:552,y:32,w:24,h:23},{x:552,y:127,w:24,h:23},{x:552,y:150,w:24,h:118},{x:552,y:268,w:24,h:118},{x:552,y:386,w:24,h:23},{x:552,y:481,w:24,h:23},
-      {x:720,y:32,w:24,h:23},{x:720,y:127,w:24,h:23},{x:720,y:150,w:24,h:23},{x:720,y:245,w:24,h:23},{x:720,y:268,w:24,h:118},{x:720,y:386,w:24,h:23},{x:720,y:481,w:24,h:23},
-      {x:888,y:32,w:24,h:118},{x:888,y:150,w:24,h:118},{x:888,y:268,w:24,h:118},{x:888,y:386,w:24,h:118},
-      {x:60,y:20,w:168,h:24},{x:228,y:20,w:168,h:24},{x:396,y:20,w:168,h:24},{x:564,y:20,w:168,h:24},{x:732,y:20,w:168,h:24},
-      {x:60,y:138,w:48,h:24},{x:180,y:138,w:48,h:24},{x:228,y:138,w:48,h:24},{x:348,y:138,w:48,h:24},{x:396,y:138,w:168,h:24},{x:564,y:138,w:48,h:24},{x:684,y:138,w:48,h:24},{x:732,y:138,w:168,h:24},
-      {x:60,y:256,w:48,h:24},{x:180,y:256,w:48,h:24},{x:228,y:256,w:168,h:24},{x:396,y:256,w:168,h:24},{x:564,y:256,w:48,h:24},{x:684,y:256,w:48,h:24},{x:732,y:256,w:48,h:24},{x:852,y:256,w:48,h:24},
-      {x:60,y:374,w:168,h:24},{x:228,y:374,w:48,h:24},{x:348,y:374,w:48,h:24},{x:396,y:374,w:48,h:24},{x:516,y:374,w:48,h:24},{x:564,y:374,w:168,h:24},{x:732,y:374,w:48,h:24},{x:852,y:374,w:48,h:24},
-      {x:60,y:492,w:48,h:24},{x:180,y:492,w:48,h:24},{x:228,y:492,w:168,h:24},{x:396,y:492,w:168,h:24},{x:564,y:492,w:168,h:24},{x:732,y:492,w:168,h:24}
+      {x:48,y:20,w:24,h:496,round:12},{x:216,y:20,w:24,h:142,round:12},{x:216,y:256,w:24,h:142,round:12},
+      {x:384,y:374,w:24,h:142,round:12},{x:552,y:138,w:24,h:260,round:12},{x:720,y:256,w:24,h:142,round:12},
+      {x:888,y:20,w:24,h:496,round:12},
+      {x:48,y:20,w:864,h:24,round:12},
+      {x:48,y:138,w:60,h:24,round:12},{x:180,y:138,w:96,h:24,round:12},{x:348,y:138,w:264,h:24,round:12},{x:684,y:138,w:228,h:24,round:12},
+      {x:48,y:256,w:60,h:24,round:12},{x:180,y:256,w:432,h:24,round:12},{x:684,y:256,w:96,h:24,round:12},{x:852,y:256,w:60,h:24,round:12},
+      {x:48,y:374,w:228,h:24,round:12},{x:348,y:374,w:96,h:24,round:12},{x:516,y:374,w:264,h:24,round:12},{x:852,y:374,w:60,h:24,round:12},
+      {x:48,y:492,w:60,h:24,round:12},{x:180,y:492,w:732,h:24,round:12}
     ],
     entities:[
       squish('lilac', 480, 209),
@@ -3811,10 +3811,35 @@ function axis() {
 function tryMove(dx, dy) {
   const room = ROOMS[state.room];
   const prevX = state.px;
-  state.px += dx;
-  if (hits(state.px, state.py, 12, room.solids)) state.px -= dx;
-  state.py += dy;
-  if (hits(state.px, state.py, 12, room.solids)) state.py -= dy;
+  const solids = room.solids;
+  const free = (x, y) => !hits(x, y, 12, solids);
+  if (free(state.px + dx, state.py + dy)) {
+    state.px += dx;
+    state.py += dy;
+  } else if (free(state.px + dx, state.py)) {
+    state.px += dx;
+  } else if (free(state.px, state.py + dy)) {
+    state.py += dy;
+  } else if (dx || dy) {
+    const slips = [8, -8, 14, -14];
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      for (const n of slips) {
+        if (free(state.px, state.py + n) && free(state.px + dx, state.py + n)) {
+          state.py += n;
+          state.px += dx;
+          break;
+        }
+      }
+    } else {
+      for (const n of slips) {
+        if (free(state.px + n, state.py) && free(state.px + n, state.py + dy)) {
+          state.px += n;
+          state.py += dy;
+          break;
+        }
+      }
+    }
+  }
   if (state.room === 'security') {
     const line = 450;
     if (!state.flags.securityPassed && prevX <= line && state.px > line) state.px = line;
@@ -3924,6 +3949,34 @@ function drawRoomBg(g, room) {
   }
   if (room.paint) room.paint(g);
 }
+function drawHedges(g, hedges) {
+  const radFor = h => Math.min(h.round || 12, h.w / 2, h.h / 2);
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  g.lineWidth = 4;
+  g.strokeStyle = '#3a2a22';
+  for (const h of hedges) {
+    roundRect(g, h.x, h.y, h.w, h.h, radFor(h));
+    g.stroke();
+  }
+  g.fillStyle = '#1e6b34';
+  for (const h of hedges) {
+    roundRect(g, h.x, h.y, h.w, h.h, radFor(h));
+    g.fill();
+  }
+  g.save();
+  g.beginPath();
+  for (const h of hedges) roundRect(g, h.x, h.y, h.w, h.h, radFor(h), true);
+  g.clip();
+  g.fillStyle = '#49b864';
+  for (const h of hedges) {
+    const inset = Math.min(h.round || 12, 10);
+    if (h.w >= h.h) roundRect(g, h.x + inset, h.y + 4, Math.max(0, h.w - inset * 2), 6, 3);
+    else roundRect(g, h.x + 4, h.y + inset, 6, Math.max(0, h.h - inset * 2), 3);
+    g.fill();
+  }
+  g.restore();
+}
 function renderWorld(g) {
   const room = ROOMS[state.room];
   if (!room) return;
@@ -3935,16 +3988,7 @@ function renderWorld(g) {
   g.lineJoin = 'round';
   g.lineCap = 'round';
   drawRoomBg(g, room);
-  if (room.hedges) {
-    for (const h of room.hedges) {
-      roundRect(g, h.x, h.y, h.w, h.h, 7);
-      fillStroke(g, '#1e6b34');
-      g.fillStyle = '#49b864';
-      const cap = Math.max(4, Math.min(9, Math.round(Math.min(h.w, h.h) * 0.34)));
-      if (h.w >= h.h) g.fillRect(h.x + 3, h.y + 3, Math.max(0, h.w - 6), cap);
-      else g.fillRect(h.x + 3, h.y + 3, cap, Math.max(0, h.h - 6));
-    }
-  }
+  if (room.hedges) drawHedges(g, room.hedges);
   const sprites = [];
   for (const e of room.entities) {
     sprites.push({
