@@ -1,0 +1,3355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Squishy Escape</title>
+<style>
+  :root { --ink:#3a2a22; --paper:#fffaf0; --yellow:#ffcf33; --sky:#8ecbff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:#6eb6ee; color:var(--ink);
+    font-family:"Trebuchet MS","Comic Sans MS","Chalkboard SE","Segoe UI",sans-serif; }
+  body { overflow:hidden; user-select:none; }
+  #app { height:100%; height:100dvh; display:flex; flex-direction:column; touch-action:none; }
+  #stage { flex:1; min-height:0; position:relative; background:#8ecbff; }
+  #c { display:block; width:100%; height:100%; touch-action:none; }
+  .faces canvas { width:120px; height:130px; }
+  .char canvas { width:140px; height:150px; }
+  #fade { position:absolute; inset:0; background:#3a2a22; opacity:0; pointer-events:none; transition:opacity .18s; z-index:4; }
+  #fade.on { opacity:1; }
+  #hud { position:absolute; z-index:5; left:8px; right:8px; top:8px; display:flex; flex-wrap:wrap; gap:6px; pointer-events:none; }
+  #hud.hidden { display:none; }
+  .pill { pointer-events:auto; background:rgba(255,250,240,.94); border:3px solid var(--ink); border-radius:999px;
+    padding:4px 10px; font-weight:800; color:var(--ink); font-size:14px; font-family:inherit; }
+  button.pill { cursor:pointer; }
+  #objective { flex:1 0 100%; border-radius:14px; text-align:center; pointer-events:none; }
+  .pill i { display:inline-block; width:9px; height:9px; border-radius:50%; margin:0 1px; border:1px solid var(--ink); opacity:.28; vertical-align:middle; }
+  .pill i.on { opacity:1; }
+  #toast { position:absolute; z-index:6; top:78px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:8px 12px; border-radius:12px; opacity:0; pointer-events:none; transition:opacity .2s; max-width:92%; text-align:center; font-weight:700; }
+  #toast.show { opacity:1; }
+  #dialog { position:absolute; z-index:7; left:10px; right:10px; bottom:10px; background:var(--paper);
+    border:4px solid var(--ink); border-radius:18px; padding:10px 12px 12px; box-shadow:0 6px 0 rgba(0,0,0,.12); }
+  #dialog.hidden { display:none; }
+  #d-who { font-weight:900; color:#b4236a; min-height:1em; }
+  #d-text { margin:4px 0 8px; font-size:18px; line-height:1.35; }
+  #bar { display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff6e4; border-top:4px solid var(--ink); }
+  #bar.hidden { display:none; }
+  .dpad { display:grid; grid-template-areas:". u ." "l . r" ". d ."; grid-template-columns:68px 68px 68px; grid-template-rows:68px 68px 68px; gap:4px; }
+  .dpad [data-dir="up"]{grid-area:u} .dpad [data-dir="left"]{grid-area:l} .dpad [data-dir="right"]{grid-area:r} .dpad [data-dir="down"]{grid-area:d}
+  #midbtns { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  button { font-family:inherit; font-weight:800; color:var(--ink); border:3px solid var(--ink); background:#fff; border-radius:16px; cursor:pointer; }
+  button:active { filter:brightness(.92); }
+  button:focus-visible { outline:4px solid #3a8bff; outline-offset:2px; }
+  .dpad button, #midbtns button { width:68px; height:68px; font-size:22px; padding:0; }
+  #midbtns button { font-size:13px; line-height:1.1; }
+  #go { width:104px; height:104px; border-radius:50%; background:var(--yellow); font-size:18px; line-height:1.1; padding:8px;
+    box-shadow:0 4px 0 #c49212; }
+  #go.dim { opacity:.5; }
+  #modal { position:fixed; inset:0; z-index:30; background:rgba(24,40,70,.4); display:flex; align-items:center; justify-content:center; padding:12px; }
+  #modal.hidden { display:none; }
+  .card { background:var(--paper); border:4px solid var(--ink); border-radius:24px; max-width:920px; width:min(920px,100%);
+    max-height:min(92dvh,920px); overflow:auto; padding:16px 16px 20px; touch-action:pan-y; box-shadow:0 10px 0 rgba(0,0,0,.15); }
+  .card h1, .card h2 { margin:4px 0 8px; text-align:center; }
+  .card p { font-size:18px; line-height:1.4; margin:8px 0; }
+  .card .row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:12px 0; }
+  .faces { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .char { width:150px; background:#fff; border:3px solid var(--ink); border-radius:18px; padding:6px; text-align:center; }
+  .char h3 { margin:0; }
+  .char p { font-size:13px; margin:4px 0; }
+  .char canvas { width:140px; height:150px; }
+  .card > button, .card .primary { background:var(--yellow); min-height:52px; padding:8px 16px; font-size:18px; margin:6px; }
+  .ghost { background:#fff !important; }
+  .choices, .grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:10px 0; }
+  .choice { min-width:84px; min-height:84px; font-size:28px; padding:8px; }
+  .choice.lit { transform:scale(1.08); box-shadow:0 0 0 4px #fff, 0 0 0 8px var(--ink); }
+  .grid { display:grid; grid-template-columns:repeat(4, minmax(64px,1fr)); }
+  .tbar { position:relative; height:36px; border-radius:20px; background:#efe6d6; border:3px solid var(--ink); overflow:hidden; margin:16px 8px; }
+  .zone { position:absolute; left:32%; width:36%; top:0; bottom:0; background:#9be59a; }
+  .needle { position:absolute; top:0; width:8px; height:100%; background:var(--ink); border-radius:4px; }
+  .bigwin { font-size:42px; text-align:center; margin:8px; }
+  .goals { list-style:none; padding:0; margin:0; }
+  .goals li { padding:8px 10px; border-radius:12px; margin:6px 0; background:#fff; border:3px solid #eadfce; font-weight:700; }
+  .goals li.done { background:#e5f8df; }
+  .pips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .pip { width:78px; height:78px; border-radius:50%; display:flex; align-items:center; justify-content:center; text-align:center;
+    font-size:12px; font-weight:800; border:3px solid var(--ink); background:#e6e0d6; color:#fff; }
+  .pip.got { background:var(--c); color:#3a2a22; }
+  .pip.rare { box-shadow:0 0 0 4px gold; }
+  .slots { display:flex; gap:8px; justify-content:center; margin:8px 0; }
+  .slot, .sample span { width:64px; height:64px; border:3px dashed var(--ink); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:32px; background:#fff; }
+  .skybox, .pondbox, .pit { position:relative; height:180px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#b9e6ff; margin:8px 0; }
+  .pondbox { background:#7ec8ea; }
+  .pit { background:#f0d59a; height:220px; }
+  .mover { position:absolute; font-size:42px; }
+  .mem { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .mem button { min-height:78px; font-size:34px; }
+  .swingbox { height:200px; position:relative; border-bottom:4px solid var(--ink); }
+  .rope { position:absolute; left:50%; top:0; width:4px; height:120px; background:var(--ink); transform-origin:top center; }
+  .seat { position:absolute; left:-18px; top:110px; font-size:40px; }
+  #err { display:none; position:fixed; z-index:80; left:0; right:0; bottom:0; background:#ffd6d6; color:#600; padding:8px; white-space:pre-wrap; font-size:12px; }
+  #autotest { position:fixed; z-index:70; left:8px; bottom:8px; background:#fff; padding:8px; max-width:90vw; }
+  .plan { width:100%; height:auto; background:#fff8e6; border:3px solid var(--ink); border-radius:12px; }
+  @keyframes shake { 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+  .shake { animation:shake .28s; }
+  @media (min-width:721px) { #midbtns .ico { display:none; } }
+  @media (max-width:720px) {
+    .dpad { grid-template-columns:52px 52px 52px; grid-template-rows:52px 52px 52px; }
+    .dpad button, #midbtns button { width:52px; height:52px; font-size:16px; }
+    #midbtns .lbl { display:none; }
+    #go { width:84px; height:84px; font-size:16px; }
+    #d-text { font-size:16px; }
+    .char { width:46%; }
+  }
+  @media (max-height:520px) {
+    .dpad { grid-template-columns:48px 48px 48px; grid-template-rows:48px 48px 48px; }
+    .dpad button, #midbtns button { width:48px; height:48px; }
+    #go { width:72px; height:72px; }
+    #hud { top:4px; }
+    .pill { font-size:12px; padding:2px 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="c" width="960" height="540"></canvas>
+    <div id="fade"></div>
+    <div id="hud">
+      <button type="button" id="who" class="pill">Friends</button>
+      <span id="roompill" class="pill">Room</span>
+      <button type="button" id="sc-school" class="pill">School</button>
+      <button type="button" id="sc-park" class="pill">Park</button>
+      <button type="button" id="sc-air" class="pill">Airport</button>
+      <button type="button" id="sc-star" class="pill">Stars</button>
+      <div id="objective" class="pill">Let's go</div>
+    </div>
+    <div id="toast"></div>
+    <div id="dialog" class="hidden">
+      <div id="d-who"></div>
+      <p id="d-text"></p>
+      <button type="button" id="d-next">Next</button>
+    </div>
+  </div>
+  <div id="bar">
+    <div class="dpad" id="dpad">
+      <button type="button" data-dir="up" aria-label="Up">▲</button>
+      <button type="button" data-dir="left" aria-label="Left">◀</button>
+      <button type="button" data-dir="right" aria-label="Right">▶</button>
+      <button type="button" data-dir="down" aria-label="Down">▼</button>
+    </div>
+    <div id="midbtns">
+      <button type="button" id="btn-goals" aria-label="Goals"><span class="lbl">Goals</span><span class="ico">★</span></button>
+      <button type="button" id="btn-bag" aria-label="Bag"><span class="lbl">Bag</span><span class="ico">🎒</span></button>
+      <button type="button" id="btn-plan" aria-label="Plan"><span class="lbl">Plan</span><span class="ico">🗺️</span></button>
+      <button type="button" id="btn-mute" aria-label="Sound">On</button>
+    </div>
+    <button type="button" id="go" aria-label="Do the action">Look</button>
+  </div>
+</div>
+<div id="modal" class="hidden"></div>
+<div id="err"></div>
+<script>
+'use strict';
+const SAVE = 'squishy-escape-v1';
+const UNLOCK = 'squishy-escape-unlock-v1';
+const params = new URLSearchParams(location.search);
+const DEBUG = params.has('debug');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const SQUISHIES = [
+  {id:'pink', name:'Pink', set:'school', hex:'#ff6fae'},
+  {id:'blue', name:'Blue', set:'school', hex:'#4aa8ff'},
+  {id:'purple', name:'Purple', set:'school', hex:'#b06bff'},
+  {id:'yellow', name:'Yellow', set:'school', hex:'#ffd23f'},
+  {id:'orange', name:'Orange', set:'school', hex:'#ff8a2a'},
+  {id:'red', name:'Red', set:'school', hex:'#ff4d4d'},
+  {id:'gold', name:'Gold', set:'school', hex:'#ffc107', rare:true},
+  {id:'mint', name:'Mint', set:'park', hex:'#7dffa8'},
+  {id:'lavender', name:'Lavender', set:'park', hex:'#c9b6ff'},
+  {id:'coral', name:'Coral', set:'park', hex:'#ff7f6e'},
+  {id:'sky', name:'Sky', set:'park', hex:'#8fd3ff'},
+  {id:'lemon', name:'Lemon', set:'park', hex:'#fff06a'},
+  {id:'lilac', name:'Lilac', set:'park', hex:'#e7a6ff'},
+  {id:'rainbow', name:'Rainbow', set:'park', hex:'#ff7ad9', rare:true, rainbow:true},
+  {id:'teal', name:'Teal', set:'air', hex:'#2ec4b6'},
+  {id:'magenta', name:'Magenta', set:'air', hex:'#ff4fa3'},
+  {id:'peach', name:'Peach', set:'air', hex:'#ffc2a1'},
+  {id:'navy', name:'Navy', set:'air', hex:'#3557c5'},
+  {id:'lime', name:'Lime', set:'air', hex:'#b6f25c'},
+  {id:'rose', name:'Rose', set:'air', hex:'#ff8fb3'},
+  {id:'emerald', name:'Emerald', set:'air', hex:'#00a86b', rare:true}
+];
+const SQUISHY_MAP = Object.fromEntries(SQUISHIES.map(s => [s.id, s]));
+const SETS = [{id:'school', name:'School'}, {id:'park', name:'Park'}, {id:'air', name:'Airport'}];
+const PLAYABLE = ['ava','darcey','axel','hallie'];
+const KIDS = {
+  ava: {name:'Ava', age:7, scale:1, hair:'#ffd24a', outfit:'#ff79b0', shoe:'#ff5a7a', style:'pony', band:'#ff5a7a', blurb:'Age 7. Blonde ponytail. Likes making plans.'},
+  darcey: {name:'Darcey', age:7, scale:1.16, hair:'#6b3a22', outfit:'#8b6cff', shoe:'#3a2a6a', style:'pony', band:'#ffd24a', blurb:'Age 7. Taller. Brown ponytail. Fast on the swings.'},
+  axel: {name:'Axel', age:4, scale:0.78, hair:'#ffe07a', outfit:'#3aa0ff', shorts:'#2f9e55', shoe:'#f4f4f4', style:'buzz', blurb:'Age 4. Blond buzz cut. Biscuit expert.'},
+  hallie: {name:'Hallie', age:4, scale:0.8, hair:'#6b3a22', outfit:'#ffe14a', shoe:'#ff7ab0', style:'pigtails', blurb:'Age 4. Brown pigtails. Friend of every duck.'},
+  finn: {name:'Finn', age:7, scale:0.92, hair:'#e25822', outfit:'#3ecf6e', shorts:'#245c9a', shoe:'#333', style:'buzz', blurb:''}
+};
+const PAIRS = [
+  {ids:['ava','axel'], label:'Ava & Axel', coat:'#7a4a28', coatDark:'#5c3518', hair:'#ffd24a', littleHair:'#ffe07a', little:'#f4f4f4', big:'#ff5a7a'},
+  {ids:['darcey','hallie'], label:'Darcey & Hallie', coat:'#2c3d78', coatDark:'#1c2858', hair:'#6b3a22', littleHair:'#6b3a22', little:'#ff7ab0', big:'#3a2a6a'}
+];
+const SKIN = '#ffc8a8';
+
+let state = null;
+let ROOMS = {};
+let mode = 'title';
+let trail = [];
+let dest = null;
+let destId = null;
+let destTimer = 0;
+let hover = null;
+let dialog = null;
+let modalOpen = false;
+let time = 0;
+let cam = {x:0, y:0, scale:1};
+let floats = [];
+let walkPhase = 0;
+let moving = false;
+let busX = 1100;
+let cssW = 960, cssH = 540, dpr = 1;
+let miniJob = null;
+let winToken = 0;
+let barkTimer = 12;
+let toastTimer = 0;
+let lastFrame = 0;
+const keys = new Set();
+const held = {up:false, down:false, left:false, right:false};
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function blankState(leader) {
+  return {
+    leader: leader || 'ava',
+    level: 1,
+    room: 'classroom',
+    px: 480, py: 300, facing: 'down',
+    items: {paper:false, pencils:false, plan:false, spades:0, biscuit:false, key:false, coatMaple:false, coatButton:false},
+    squishies: {},
+    stars: 0,
+    flags: {},
+    muted: false,
+    unlocked: 1
+  };
+}
+function countSet(set) { return SQUISHIES.filter(s => s.set === set && state.squishies[s.id]).length; }
+function kidName() { return KIDS[state.leader].name; }
+function buddy() {
+  const id = PLAYABLE.find(k => k !== state.leader) || 'ava';
+  return KIDS[id].name;
+}
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function save() {
+  try {
+    const data = {
+      leader: state.leader, level: state.level, room: state.room, px: state.px, py: state.py, facing: state.facing,
+      items: state.items, squishies: state.squishies, stars: state.stars || 0, flags: state.flags,
+      muted: !!state.muted, unlocked: state.unlocked || 1
+    };
+    localStorage.setItem(SAVE, JSON.stringify(data));
+    localStorage.setItem(UNLOCK, String(state.unlocked || 1));
+  } catch (e) { /* private mode */ }
+}
+function unlockLevel() { return Number(localStorage.getItem(UNLOCK) || '1') || 1; }
+function loadState() {
+  try {
+    const raw = localStorage.getItem(SAVE);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    const s = blankState(data.leader || 'ava');
+    s.level = data.level || 1;
+    s.room = data.room || 'classroom';
+    s.px = data.px ?? 480; s.py = data.py ?? 300; s.facing = data.facing || 'down';
+    Object.assign(s.items, data.items || {});
+    s.squishies = data.squishies || {};
+    s.stars = data.stars || 0;
+    s.flags = data.flags || {};
+    s.muted = !!data.muted;
+    s.unlocked = Math.max(data.unlocked || 1, unlockLevel());
+    if (!ROOMS[s.room]) s.room = 'classroom';
+    return s;
+  } catch (e) { return null; }
+}
+function refreshDerived() {
+  if (countSet('park') >= 7) state.flags.busArrived = true;
+}
+function grantSet(set) { SQUISHIES.forEach(s => { if (s.set === set) state.squishies[s.id] = true; }); }
+
+let actx = null;
+function ac() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, type, when, gain) {
+  if (!state || state.muted) return;
+  try {
+    const a = ac();
+    const o = a.createOscillator();
+    const g = a.createGain();
+    const t0 = a.currentTime + (when || 0);
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(gain || 0.07, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch (e) { /* audio optional */ }
+}
+function sfx(name) {
+  if (name === 'collect') { tone(523,.12,'triangle',0,.08); tone(659,.12,'triangle',.1,.08); tone(784,.18,'triangle',.2,.08); }
+  else if (name === 'star') { tone(880,.1,'sine',0,.06); tone(1174,.16,'sine',.1,.06); }
+  else if (name === 'no') tone(196,.14,'square',0,.03);
+  else if (name === 'ok') tone(660,.09,'sine',0,.06);
+  else if (name === 'dig') tone(130,.07,'triangle',0,.05);
+  else if (name === 'bus') { tone(196,.18,'sawtooth',0,.03); tone(262,.28,'sawtooth',.12,.03); }
+}
+
+function el(tag, attrs, child) {
+  const n = document.createElement(tag);
+  attrs = attrs || {};
+  for (const k of Object.keys(attrs)) {
+    if (k === 'class') n.className = attrs[k];
+    else n.setAttribute(k, attrs[k]);
+  }
+  if (tag === 'button' && !n.getAttribute('type')) n.type = 'button';
+  if (child != null) {
+    if (Array.isArray(child)) child.forEach(c => n.append(c));
+    else n.append(child);
+  }
+  return n;
+}
+function freezeInput() {
+  keys.clear();
+  held.up = held.down = held.left = held.right = false;
+  dest = null; destId = null;
+}
+function trackMini(stop) {
+  if (miniJob) miniJob();
+  miniJob = stop;
+}
+function cleanupMini() {
+  winToken++;
+  if (miniJob) { const s = miniJob; miniJob = null; s(); }
+}
+function showCard(build) {
+  cleanupMini();
+  freezeInput();
+  modalOpen = true;
+  const modal = document.getElementById('modal');
+  modal.classList.remove('hidden');
+  modal.replaceChildren();
+  const card = el('div', {class:'card'});
+  modal.append(card);
+  build(card);
+}
+function closeModal() {
+  cleanupMini();
+  modalOpen = false;
+  const modal = document.getElementById('modal');
+  modal.classList.add('hidden');
+  modal.replaceChildren();
+}
+function addBack(card, label) {
+  const b = el('button', {class:'ghost'}, label || 'Back');
+  b.addEventListener('click', closeModal);
+  card.append(b);
+}
+function succeed(node, onWin) {
+  const token = ++winToken;
+  sfx('ok');
+  node.append(el('p', {class:'bigwin'}, 'Yes!'));
+  setTimeout(() => { if (token === winToken) onWin(); }, 480);
+}
+
+function say(lines, onDone) {
+  freezeInput();
+  dialog = {lines, i:0, onDone: onDone || null};
+  renderDialog();
+}
+function renderDialog() {
+  const d = document.getElementById('dialog');
+  if (!dialog) { d.classList.add('hidden'); return; }
+  d.classList.remove('hidden');
+  document.getElementById('d-who').textContent = dialog.lines[dialog.i].name || '';
+  document.getElementById('d-text').textContent = dialog.lines[dialog.i].text;
+}
+function advanceDialog() {
+  if (!dialog) return;
+  dialog.i++;
+  if (dialog.i >= dialog.lines.length) {
+    const cb = dialog.onDone;
+    dialog = null;
+    renderDialog();
+    if (cb) cb();
+  } else renderDialog();
+}
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function floatText(text, x, y, color) {
+  floats.push({text, x, y, life:1.35, color: color || '#3a2a22'});
+}
+
+function roundRect(g, x, y, w, h, r) {
+  r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+function fillStroke(g, fill, lw) {
+  g.fillStyle = fill;
+  g.fill();
+  g.lineWidth = lw || 2;
+  g.strokeStyle = '#3a2a22';
+  g.stroke();
+}
+function drawLabel(g, x, y, text) {
+  g.font = '700 13px Trebuchet MS, Comic Sans MS, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineWidth = 3;
+  g.strokeStyle = 'rgba(255,255,255,.92)';
+  g.strokeText(text, x, y);
+  g.fillStyle = '#3a2a22';
+  g.fillText(text, x, y);
+}
+function drawStar(g, x, y, r, color) {
+  g.save();
+  g.translate(x, y);
+  if (!reduceMotion) g.rotate(time * 0.8);
+  g.fillStyle = color || '#ffe14a';
+  g.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5 - Math.PI / 2;
+    const a2 = a + Math.PI / 5;
+    g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    g.lineTo(Math.cos(a2) * r * 0.45, Math.sin(a2) * r * 0.45);
+  }
+  g.closePath();
+  g.fill();
+  g.lineWidth = 1.5;
+  g.strokeStyle = '#3a2a22';
+  g.stroke();
+  g.restore();
+}
+function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader) {
+  const k = KIDS[id];
+  const s = (k.scale || 1) * (extra || 1);
+  g.save();
+  g.translate(x, y + (bob || 0));
+  g.scale(facing === 'left' ? -s : s, s);
+  g.fillStyle = 'rgba(0,0,0,.18)';
+  g.beginPath(); g.ellipse(0, 2, 14, 5, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = SKIN;
+  if (k.style === 'buzz') {
+    roundRect(g, -8, -20, 6, 14, 2); g.fill();
+    roundRect(g, 2, -20, 6, 14, 2); g.fill();
+    g.fillStyle = k.shorts;
+    roundRect(g, -9, -26, 18, 10, 3); fillStroke(g, k.shorts);
+  } else {
+    roundRect(g, -7, -16, 5, 12, 2); g.fill();
+    roundRect(g, 2, -16, 5, 12, 2); g.fill();
+  }
+  g.fillStyle = k.shoe;
+  roundRect(g, -9, -8, 8, 6, 2); g.fill();
+  roundRect(g, 1, -8, 8, 6, 2); g.fill();
+  if (k.style === 'buzz') roundRect(g, -12, -44, 24, 22, 6);
+  else roundRect(g, -14, -46, 28, 32, 8);
+  fillStroke(g, k.outfit);
+  g.fillStyle = SKIN;
+  roundRect(g, -18, -40, 6, 14, 3); g.fill();
+  roundRect(g, 12, -40, 6, 14, 3); g.fill();
+  g.fillStyle = SKIN;
+  g.beginPath(); g.arc(0, -58, 14, 0, Math.PI * 2); fillStroke(g, SKIN);
+  g.fillStyle = k.hair;
+  if (facing === 'up') {
+    g.beginPath(); g.arc(0, -58, 14, 0, Math.PI * 2); g.fill();
+  } else if (k.style === 'buzz') {
+    g.beginPath(); g.arc(0, -61, 14, Math.PI, 0); g.fill();
+    g.fillStyle = SKIN;
+    g.beginPath(); g.arc(-14, -56, 3.2, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(14, -56, 3.2, 0, Math.PI * 2); g.fill();
+  } else if (k.style === 'pigtails') {
+    g.beginPath(); g.arc(0, -62, 14, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+    g.beginPath(); g.arc(-16, -50, 6, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(16, -50, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ff7ab0';
+    g.beginPath(); g.arc(-16, -50, 2.2, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(16, -50, 2.2, 0, Math.PI * 2); g.fill();
+  } else {
+    g.beginPath(); g.arc(0, -62, 14, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+    g.beginPath(); g.ellipse(16, -46, 6, 13, 0.45, 0, Math.PI * 2); g.fill();
+    g.fillStyle = k.band || '#ff5a7a';
+    g.beginPath(); g.ellipse(12, -56, 3.2, 2.2, 0.4, 0, Math.PI * 2); g.fill();
+  }
+  if (facing !== 'up') {
+    g.fillStyle = '#3a2a22';
+    g.beginPath(); g.arc(-4.5, -59, 1.7, 0, Math.PI * 2); g.arc(4.5, -59, 1.7, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#3a2a22'; g.lineWidth = 1.6;
+    g.beginPath(); g.arc(0, -55, 5, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+    g.fillStyle = 'rgba(255,120,140,.4)';
+    g.beginPath(); g.arc(-8, -54, 2.2, 0, Math.PI * 2); g.arc(8, -54, 2.2, 0, Math.PI * 2); g.fill();
+  }
+  g.restore();
+  if (showName) {
+    drawLabel(g, x, y + 16, k.name);
+    if (isLeader) drawStar(g, x, y - 82 * (k.scale || 1), 8, '#ffcf33');
+  }
+}
+function drawCoatPerson(g, x, y, pair, bob) {
+  g.save();
+  g.translate(x, y + (bob || 0));
+  g.fillStyle = 'rgba(0,0,0,.18)';
+  g.beginPath(); g.ellipse(0, 2, 18, 6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = pair.little;
+  roundRect(g, -24, -48, 10, 6, 2); g.fill();
+  roundRect(g, 14, -48, 10, 6, 2); g.fill();
+  roundRect(g, -20, -98, 40, 90, 12);
+  fillStroke(g, pair.coat);
+  g.fillStyle = pair.coatDark;
+  roundRect(g, -12, -78, 24, 10, 3); g.fill();
+  g.fillStyle = pair.big;
+  roundRect(g, -16, -14, 12, 8, 2); g.fill();
+  roundRect(g, 4, -14, 12, 8, 2); g.fill();
+  g.beginPath(); g.arc(0, -110, 13, 0, Math.PI * 2); fillStroke(g, SKIN);
+  g.fillStyle = pair.hair;
+  g.beginPath(); g.arc(0, -114, 13, Math.PI, 0); g.fill();
+  g.beginPath(); g.ellipse(14, -100, 5, 11, 0.4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3a2a22';
+  g.beginPath(); g.arc(-4, -110, 1.5, 0, 7); g.arc(4, -110, 1.5, 0, 7); g.fill();
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 1.5;
+  g.beginPath(); g.arc(0, -106, 4, 0.2, 0.8 * Math.PI); g.stroke();
+  g.fillStyle = SKIN;
+  g.beginPath(); g.arc(22, -70, 9, 0, Math.PI * 2); fillStroke(g, SKIN);
+  g.fillStyle = pair.littleHair || pair.hair;
+  g.beginPath(); g.arc(22, -74, 9, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+  g.fillStyle = '#3a2a22';
+  g.beginPath(); g.arc(19, -70, 1.1, 0, 7); g.arc(25, -70, 1.1, 0, 7); g.fill();
+  g.restore();
+  drawLabel(g, x, y - 136, pair.label);
+}
+function drawAdult(g, x, y, opt) {
+  g.save();
+  g.translate(x, y);
+  g.fillStyle = 'rgba(0,0,0,.15)';
+  g.beginPath(); g.ellipse(0, 2, 16, 6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = opt.pants || '#333';
+  roundRect(g, -9, -28, 7, 26, 2); g.fill();
+  roundRect(g, 2, -28, 7, 26, 2); g.fill();
+  g.fillStyle = '#222';
+  roundRect(g, -11, -8, 11, 6, 2); g.fill();
+  roundRect(g, 1, -8, 11, 6, 2); g.fill();
+  roundRect(g, -16, -62, 32, 38, 8);
+  fillStroke(g, opt.shirt || '#88a');
+  if (opt.apron) { g.fillStyle = opt.apron; roundRect(g, -12, -58, 24, 28, 4); g.fill(); }
+  g.fillStyle = SKIN;
+  g.beginPath(); g.arc(0, -78, 14, 0, Math.PI * 2); fillStroke(g, SKIN);
+  if (!opt.bald) {
+    g.fillStyle = opt.hair || '#333';
+    g.beginPath(); g.arc(0, -82, 14, Math.PI, 0); g.fill();
+    if (opt.bun) { g.beginPath(); g.arc(0, -96, 6, 0, Math.PI * 2); g.fill(); }
+  } else {
+    g.fillStyle = opt.hair || '#bbb';
+    g.fillRect(-8, -90, 16, 4);
+  }
+  if (opt.hat || opt.cap || opt.beret) {
+    g.fillStyle = opt.hat || opt.cap || opt.beret;
+    roundRect(g, -16, -96, 32, 8, 3); g.fill();
+    if (opt.beret) { g.beginPath(); g.ellipse(0, -100, 12, 6, 0, 0, 7); g.fill(); }
+  }
+  g.fillStyle = '#3a2a22';
+  g.beginPath(); g.arc(-4, -78, 1.5, 0, 7); g.arc(4, -78, 1.5, 0, 7); g.fill();
+  if (opt.glasses) {
+    g.strokeStyle = '#3a2a22'; g.lineWidth = 1.4;
+    g.strokeRect(-9, -83, 7, 6); g.strokeRect(2, -83, 7, 6);
+  }
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 1.4;
+  g.beginPath(); g.arc(0, -74, 5, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+  g.restore();
+}
+function drawParrot(g, x, y) {
+  g.save();
+  g.translate(x, y);
+  g.fillStyle = 'rgba(0,0,0,.15)';
+  g.beginPath(); g.ellipse(0, 2, 14, 5, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(0, -30, 16, 22, 0, 0, Math.PI * 2); fillStroke(g, '#3cb44a');
+  g.fillStyle = '#ffcf33';
+  g.beginPath(); g.moveTo(10, -32); g.lineTo(28, -28); g.lineTo(10, -22); g.closePath(); g.fill();
+  g.fillStyle = '#e23b3b';
+  g.beginPath(); g.ellipse(-10, -12, 7, 14, -0.7, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff';
+  g.beginPath(); g.arc(-2, -36, 4, 0, 7); g.fill();
+  g.fillStyle = '#222';
+  g.beginPath(); g.arc(-1, -36, 2, 0, 7); g.fill();
+  g.restore();
+}
+function drawSquishy(g, x, y, id, sc) {
+  const s = SQUISHY_MAP[id];
+  if (!s) return;
+  const S = sc || 1;
+  g.save();
+  g.translate(x, y);
+  g.scale(S, S);
+  if (!reduceMotion) g.translate(0, Math.sin(time * 3 + x * 0.02) * 3);
+  g.fillStyle = 'rgba(0,0,0,.15)';
+  g.beginPath(); g.ellipse(0, 18, 12, 4, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(0, 0, 16, 14, 0, 0, Math.PI * 2);
+  if (s.rainbow) {
+    g.save();
+    g.clip();
+    const cols = ['#ff4d4d','#ff8a2a','#ffe14a','#5dce6a','#4aa8ff','#a05cff'];
+    cols.forEach((c, i) => {
+      g.fillStyle = c;
+      g.fillRect(-18, -16 + i * (32 / cols.length), 36, 32 / cols.length + 0.6);
+    });
+    g.restore();
+    g.beginPath(); g.ellipse(0, 0, 16, 14, 0, 0, Math.PI * 2);
+  } else g.fillStyle = s.hex;
+  g.fill();
+  g.lineWidth = 2; g.strokeStyle = '#3a2a22'; g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.4)';
+  g.beginPath(); g.ellipse(-4, -4, 6, 4, -0.4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3a2a22';
+  g.beginPath(); g.arc(-5, -1, 1.6, 0, 7); g.arc(5, -1, 1.6, 0, 7); g.fill();
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 1.4;
+  g.beginPath(); g.arc(0, 2, 4, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+  if (s.rare) drawStar(g, 0, -22, 7, '#fff4b0');
+  g.restore();
+}
+function drawDoor(g, x, y, label) {
+  g.fillStyle = '#d8b56a';
+  g.fillRect(x - 26, y + 30, 52, 8);
+  roundRect(g, x - 24, y - 36, 48, 70, 6);
+  fillStroke(g, '#8a5a32');
+  g.fillStyle = '#d7f4ff';
+  roundRect(g, x - 12, y - 26, 24, 18, 3); g.fill();
+  g.fillStyle = '#ffd23a';
+  g.beginPath(); g.arc(x + 12, y + 6, 3.5, 0, 7); g.fill();
+  drawLabel(g, x, y - 50, label);
+}
+function drawChest(g, x, y, open) {
+  roundRect(g, x - 24, y - 10, 48, 28, 4);
+  fillStroke(g, '#c9862a');
+  if (open) {
+    roundRect(g, x - 24, y - 36, 48, 16, 4);
+    fillStroke(g, '#e0a84a');
+  } else {
+    roundRect(g, x - 24, y - 28, 48, 20, 4);
+    fillStroke(g, '#e0a84a');
+  }
+  g.fillStyle = '#ffd23a';
+  g.fillRect(x - 4, y - 4, 8, 8);
+}
+function drawBus(g, x, y) {
+  g.save();
+  g.translate(x, y);
+  g.fillStyle = 'rgba(0,0,0,.15)';
+  g.beginPath(); g.ellipse(0, 8, 86, 10, 0, 0, Math.PI * 2); g.fill();
+  roundRect(g, -100, -78, 160, 72, 10);
+  fillStroke(g, '#ffd23a');
+  roundRect(g, 48, -86, 56, 80, 8);
+  fillStroke(g, '#ffbf1a');
+  g.fillStyle = '#d7f4ff';
+  roundRect(g, 56, -76, 40, 24, 4); g.fill();
+  for (let i = 0; i < 2; i++) { roundRect(g, -86 + i * 42, -68, 32, 18, 3); g.fill(); }
+  roundRect(g, 54, -46, 44, 28, 3);
+  fillStroke(g, '#171717');
+  g.fillStyle = '#ffe14a';
+  g.font = '800 11px Trebuchet MS, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText('AIR', 76, -37);
+  g.fillText('PORT', 76, -25);
+  roundRect(g, -48, -42, 92, 22, 3);
+  fillStroke(g, '#171717');
+  g.fillStyle = '#ffe14a';
+  g.font = '800 16px Trebuchet MS, sans-serif';
+  g.fillText('AIRPORT', -2, -31);
+  g.fillStyle = '#222';
+  g.beginPath(); g.arc(-55, -2, 11, 0, Math.PI * 2); g.arc(28, -2, 11, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+function drawPlane(g, x, y) {
+  g.save();
+  g.translate(x, y);
+  roundRect(g, -100, -22, 190, 36, 16);
+  fillStroke(g, '#f7f7f7');
+  g.fillStyle = '#2f6fed';
+  g.fillRect(-100, -6, 190, 8);
+  g.fillStyle = '#f7f7f7';
+  g.beginPath(); g.moveTo(70, -22); g.lineTo(120, -64); g.lineTo(100, -22); g.closePath();
+  g.fill(); g.strokeStyle = '#3a2a22'; g.lineWidth = 2; g.stroke();
+  g.beginPath(); g.moveTo(-20, -4); g.lineTo(-70, 30); g.lineTo(24, 0); g.closePath();
+  g.fill(); g.stroke();
+  g.fillStyle = '#9ad7ff';
+  for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(-70 + i * 20, -12, 4, 0, 7); g.fill(); }
+  g.restore();
+}
+function drawMexicoSign(g, x, y, flash) {
+  const on = flash && Math.sin(time * 8) > 0;
+  roundRect(g, x - 78, y - 28, 156, 56, 8);
+  fillStroke(g, flash ? (on ? '#ffe14a' : '#fff') : '#d9d3c7');
+  g.fillStyle = flash ? '#b42323' : '#777';
+  g.font = '900 28px Trebuchet MS, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('MEXICO', x, y + 2);
+}
+function drawCoat(g, x, y, color) {
+  g.save();
+  g.translate(x, y);
+  roundRect(g, -16, -36, 32, 40, 8);
+  fillStroke(g, color);
+  g.fillStyle = color;
+  roundRect(g, -26, -30, 12, 22, 4); g.fill();
+  roundRect(g, 14, -30, 12, 22, 4); g.fill();
+  g.restore();
+}
+
+function prop(o) {
+  return Object.assign({range:80, draw(){}, prompt(){return null;}, use(){}, sparkle(){return false;}}, o);
+}
+function hits(x, y, r, rects) {
+  for (const s of rects) {
+    const cx = Math.max(s.x, Math.min(x, s.x + s.w));
+    const cy = Math.max(s.y, Math.min(y, s.y + s.h));
+    const dx = x - cx, dy = y - cy;
+    if (dx * dx + dy * dy < r * r) return true;
+  }
+  return false;
+}
+function bounds(room) {
+  const p = room.outdoor ? 16 : 20;
+  const w = room.w, h = room.h;
+  return [
+    {x:-80, y:-80, w:w + 160, h:80 + p},
+    {x:-80, y:h - p, w:w + 160, h:120},
+    {x:-80, y:0, w:80 + p, h:h},
+    {x:w - p, y:0, w:120, h:h}
+  ];
+}
+function R(id, name, opts) {
+  const room = Object.assign({
+    id, name, w:960, h:540, floor:'#f0d8b0', outdoor:false, entities:[], hedges:null, spawns:{default:{x:480, y:320}}
+  }, opts || {});
+  room.solids = bounds(room)
+    .concat(room.entities.filter(e => e.solid).map(e => e.solid))
+    .concat(room.hedges || []);
+  return room;
+}
+function door(id, x, y, label, to, spawn) {
+  return prop({
+    id, x, y, to, spawn, range:74,
+    prompt: () => label,
+    use() { enter(to, spawn); },
+    draw(g) { drawDoor(g, x, y, label); }
+  });
+}
+function talker(id, x, y, who, name, lines, look) {
+  return prop({
+    id, x, y, range:72,
+    prompt: () => 'Talk',
+    use() {
+      const ls = typeof lines === 'function' ? lines() : lines;
+      say(ls.map(t => typeof t === 'string' ? {name, text:t} : t));
+    },
+    draw(g) {
+      if (who === 'parrot') drawParrot(g, x, y);
+      else if (who === 'finn') drawKid(g, x, y, 'finn', 'down', 0, 1, false, false);
+      else drawAdult(g, x, y, look || {});
+      drawLabel(g, x, y - (who === 'parrot' ? 70 : who === 'finn' ? 78 : 108), name);
+    }
+  });
+}
+function sign(id, x, y, title, text, opt) {
+  opt = opt || {};
+  return prop({
+    id, x, y, range:68,
+    prompt: () => opt.prompt || 'Look',
+    sparkle() { return !!(opt.star && !state.flags[opt.star]); },
+    use() {
+      if (opt.star) addStar(opt.star);
+      const lines = Array.isArray(text) ? text : [text];
+      say(lines.map(t => typeof t === 'string' ? {name:title, text:t} : t));
+    },
+    draw(g) {
+      if (opt.draw) opt.draw(g, x, y);
+      else {
+        roundRect(g, x - 18, y - 26, 36, 32, 4);
+        fillStroke(g, opt.color || '#fff');
+      }
+      drawLabel(g, x, y + 22, title);
+      if (opt.star && !state.flags[opt.star]) drawStar(g, x, y - 40, 7, '#ffe14a');
+    }
+  });
+}
+function squish(id, x, y) {
+  return prop({
+    id: 'sq-' + id, x, y, range:64,
+    prompt() { return state.squishies[id] ? null : 'Pick up'; },
+    sparkle() { return !state.squishies[id]; },
+    use() { pickup(id); },
+    draw(g) { if (!state.squishies[id]) drawSquishy(g, x, y, id, 1); }
+  });
+}
+function desk(x, y, w, h) {
+  w = w || 100; h = h || 46;
+  return prop({
+    id: 'desk-' + x + '-' + y,
+    x: x + w / 2, y: y + h + 4,
+    solid: {x, y, w, h},
+    prompt() { return null; },
+    draw(g) {
+      roundRect(g, x, y, w, h, 6);
+      fillStroke(g, '#c9843a');
+      g.fillStyle = '#e7b56a';
+      g.fillRect(x + 6, y + 6, w - 12, 8);
+    }
+  });
+}
+function blocker(id, x, y, w, h, color) {
+  return prop({
+    id, x: x + w / 2, y: y + h + 4,
+    solid: {x, y, w, h},
+    prompt() { return null; },
+    draw(g) {
+      if (!color) return;
+      roundRect(g, x, y, w, h, 8);
+      fillStroke(g, color);
+    }
+  });
+}
+
+function collect(id) {
+  if (state.squishies[id]) return null;
+  state.squishies[id] = true;
+  const s = SQUISHY_MAP[id];
+  floatText(s.name + ' squishy!', state.px, state.py - 46, s.hex);
+  sfx('collect');
+  let extra = null;
+  if (s.set === 'park' && countSet('park') === 7) {
+    state.flags.busArrived = true;
+    extra = {name:'Darcey', text:'Listen! A bus pulled up. The sign on the front says AIRPORT.'};
+    sfx('bus');
+  }
+  if (s.set === 'air' && countSet('air') === 7 && state.flags.securityPassed) {
+    extra = {name:'Ava', text:'The MEXICO sign is flashing! That is our plane!'};
+  }
+  save();
+  return extra;
+}
+function pickup(id) {
+  const s = SQUISHY_MAP[id];
+  const extra = collect(id);
+  const lines = [{name:buddy(), text:(s.rare ? 'The rare ' : 'A ') + s.name.toLowerCase() + ' squishy!'}];
+  if (extra) lines.push(extra);
+  say(lines);
+}
+function grantSquishy(id, name, text) {
+  const first = !state.squishies[id];
+  closeModal();
+  const lines = [{name, text: first ? text : 'We already have that one. Still fun!'}];
+  if (first) {
+    const extra = collect(id);
+    if (extra) lines.push(extra);
+  }
+  say(lines);
+}
+function addStar(flag) {
+  if (state.flags[flag]) return;
+  state.flags[flag] = true;
+  state.stars = (state.stars || 0) + 1;
+  floatText('Star sticker!', state.px, state.py - 60, '#e2a400');
+  sfx('star');
+  save();
+}
+function digBlockers() {
+  const need = [];
+  if (!state.items.plan) need.push('the plan');
+  if (!state.items.coatMaple || !state.items.coatButton) need.push('both grown-up coats');
+  if ((state.items.spades || 0) < 2) need.push('two spades');
+  if (!state.flags.teacherLocked) need.push('Ms Maple counting in the cupboard');
+  if (countSet('school') < 7) need.push('all 7 school squishies (' + countSet('school') + '/7)');
+  return need;
+}
+function mexicoReady() {
+  return !!state.flags.securityPassed && countSet('air') >= 7;
+}
+function objective() {
+  if (!state) return '';
+  if (state.level === 1) {
+    if (!state.items.paper && !state.items.plan) return 'Find paper in the library';
+    if (!state.items.pencils && !state.items.plan) return 'Find the pencils in the classroom';
+    if (!state.items.plan) return 'Use paper and pencils on the classroom table';
+    if (!state.items.coatButton) return "Get Miss Button's coat from the cloakroom";
+    if (!state.items.coatMaple) return "Get Ms Maple's coat from the cupboard";
+    if (!state.items.key) return 'Find the shed key in lost property';
+    if ((state.items.spades || 0) < 2) return 'Open the playground shed for two spades';
+    if (!state.items.biscuit) return 'Take a biscuit from the canteen';
+    if (!state.flags.teacherLocked) return 'Leave the biscuit in the stationery cupboard';
+    if (countSet('school') < 7) return 'Collect all 7 school squishies (' + countSet('school') + '/7). Gold is in music.';
+    if (!state.flags.tunnelOpen) return 'Dig a tunnel in the playground sandpit';
+    return 'Crawl through the tunnel!';
+  }
+  if (state.level === 2) {
+    if (countSet('park') < 7) return 'Play on the rides and collect 7 park squishies (' + countSet('park') + '/7)';
+    return 'Board the bus. The front sign says AIRPORT.';
+  }
+  if (!state.flags.securityPassed) {
+    if (!state.flags.disguised) {
+      if (!state.squishies.teal || !state.squishies.rose) return 'Check-in, baggage belt, then the photo booth coats';
+      return 'Photo booth: little ones on shoulders, then the coats';
+    }
+    return 'Walk through security in the tall coats';
+  }
+  if (countSet('air') < 7) return 'Collect all 7 airport squishies (' + countSet('air') + '/7)';
+  return 'The MEXICO sign is flashing. Board the plane!';
+}
+function goalList() {
+  const done = (t, ok) => ({text:t, done:!!ok});
+  if (state.level === 1) {
+    return [
+      done('Paper', state.items.paper || state.items.plan),
+      done('Pencils', state.items.pencils || state.items.plan),
+      done('Plan drawn on the table', state.items.plan),
+      done("Miss Button's coat", state.items.coatButton),
+      done("Ms Maple's coat", state.items.coatMaple),
+      done('Shed key', state.items.key),
+      done('Two spades', (state.items.spades || 0) >= 2),
+      done('Biscuit', state.items.biscuit || state.flags.teacherLocked),
+      done('Ms Maple is counting in the cupboard', state.flags.teacherLocked),
+      done('School squishies ' + countSet('school') + '/7', countSet('school') >= 7),
+      done('Tunnel', state.flags.tunnelOpen || state.level > 1)
+    ];
+  }
+  if (state.level === 2) {
+    const rows = SQUISHIES.filter(s => s.set === 'park').map(s => done(s.name + (s.rare ? ' (rare)' : ''), state.squishies[s.id]));
+    rows.push(done('Airport bus', state.level > 2));
+    return rows;
+  }
+  const rows = [
+    done('Tall-coat disguise', state.flags.disguised),
+    done('Through security', state.flags.securityPassed)
+  ];
+  SQUISHIES.filter(s => s.set === 'air').forEach(s => rows.push(done(s.name + (s.rare ? ' (rare)' : ''), state.squishies[s.id])));
+  rows.push(done('Plane to Mexico', state.unlocked >= 4 && state.level > 3));
+  return rows;
+}
+
+function resetTrail() {
+  const knots = [{x:0, y:0}, {x:-120, y:96}, {x:110, y:96}, {x:200, y:150}];
+  trail = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 5;
+    const a = Math.min(knots.length - 1, Math.floor(t));
+    const f = t - a;
+    const p0 = knots[a];
+    const p1 = knots[Math.min(knots.length - 1, a + 1)];
+    trail.push({
+      x: state.px + p0.x + (p1.x - p0.x) * f,
+      y: state.py + p0.y + (p1.y - p0.y) * f,
+      facing: 'down'
+    });
+  }
+}
+function trailPoint(i) {
+  if (!trail.length) return {x: state.px, y: state.py, facing: state.facing};
+  const idx = Math.min(trail.length - 1, (i + 1) * 5);
+  return trail[idx];
+}
+function enter(roomId, spawnName) {
+  const room = ROOMS[roomId];
+  if (!room) return;
+  const sp = room.spawns[spawnName] || room.spawns.default;
+  const fade = document.getElementById('fade');
+  fade.classList.add('on');
+  setTimeout(() => {
+    state.room = roomId;
+    state.px = sp.x; state.py = sp.y; state.facing = 'down';
+    dest = null; destId = null;
+    if (roomId === 'lawn' && state.flags.busArrived) busX = 1100;
+    resetTrail();
+    save();
+    fade.classList.remove('on');
+  }, 160);
+}
+function finishLevel() {
+  if (state.level === 1) {
+    showStory('Through the tunnel!', [
+      'You crawl under the school wall and pop out behind a bush.',
+      'The playpark is sunny. Seven more squishies are hiding on the rides.',
+      'The rainbow one is a puzzle, up in the treehouse.'
+    ], 'To the park!', () => {
+      state.level = 2;
+      state.unlocked = Math.max(state.unlocked || 1, 2);
+      enter('lawn', 'tunnel');
+      save();
+    });
+  } else if (state.level === 2) {
+    showStory('The airport bus!', [
+      'Everyone finds a seat. The coats stay safe in the bag.',
+      'The sign on the front of the bus says AIRPORT.',
+      'Next, the little ones will stand on shoulders.'
+    ], 'Ride the bus', () => {
+      state.level = 3;
+      state.unlocked = Math.max(state.unlocked || 1, 3);
+      enter('departures', 'bus');
+      save();
+    });
+  } else {
+    state.level = 4;
+    state.unlocked = Math.max(state.unlocked || 1, 4);
+    save();
+    showEnding();
+  }
+}
+function showStory(title, paragraphs, button, onDone) {
+  showCard(card => {
+    card.append(el('h2', {}, title));
+    paragraphs.forEach(p => card.append(el('p', {}, p)));
+    const b = el('button', {}, button);
+    b.addEventListener('click', () => { closeModal(); onDone(); });
+    card.append(b);
+  });
+}
+function showEnding() {
+  mode = 'ending';
+  showCard(card => {
+    card.append(el('h2', {}, 'Mexico!'));
+    card.append(el('p', {}, 'The plane lands in the sun. Every squishy wriggles hello. Ava, Darcey, Axel and Hallie did it together.'));
+    card.append(el('p', {}, 'School ' + countSet('school') + '/7    Park ' + countSet('park') + '/7    Airport ' + countSet('air') + '/7    Stars ' + (state.stars || 0) + '/9'));
+    const b = el('button', {}, 'Play again');
+    b.addEventListener('click', () => { mode = 'title'; openTitle(); });
+    card.append(b);
+  });
+}
+
+function portrait(id, big) {
+  const w = big ? 160 : 120, h = big ? 168 : 130;
+  const c = el('canvas', {width:String(w), height:String(h)});
+  const g = c.getContext('2d');
+  g.fillStyle = '#ffe9a8';
+  g.beginPath(); g.arc(w / 2, h / 2 + 8, w * 0.38, 0, Math.PI * 2); g.fill();
+  drawKid(g, w / 2, h - 14, id, 'down', 0, big ? 1.55 : 1.15, false, false);
+  return c;
+}
+function openTitle() {
+  mode = 'title';
+  const unlocked = Math.max(state ? state.unlocked || 1 : 1, unlockLevel());
+  showCard(card => {
+    card.append(el('h1', {}, 'Squishy Escape'));
+    card.append(el('p', {}, 'Four friends. Three squishy families. One sandy tunnel, one airport bus, and a plane to Mexico.'));
+    const faces = el('div', {class:'faces'});
+    PLAYABLE.forEach(id => faces.append(portrait(id, false)));
+    card.append(faces);
+    const row = el('div', {class:'row'});
+    const play = el('button', {}, 'Play');
+    play.addEventListener('click', openSelect);
+    row.append(play);
+    if (localStorage.getItem(SAVE)) {
+      const cont = el('button', {}, 'Continue');
+      cont.addEventListener('click', continueGame);
+      row.append(cont);
+    }
+    const how = el('button', {class:'ghost'}, 'How to play');
+    how.addEventListener('click', openHow);
+    row.append(how);
+    card.append(row);
+    if (unlocked >= 2) {
+      card.append(el('p', {}, 'Play a chapter again. The friends you picked last time will lead.'));
+      const row2 = el('div', {class:'row'});
+      const names = ['1. School', '2. Playpark', '3. Airport'];
+      for (let n = 1; n <= Math.min(3, unlocked >= 4 ? 3 : unlocked); n++) {
+        const b = el('button', {class:'ghost'}, names[n - 1]);
+        b.addEventListener('click', () => beginChapter(n));
+        row2.append(b);
+      }
+      card.append(row2);
+    }
+  });
+}
+function openHow() {
+  showCard(card => {
+    card.append(el('h2', {}, 'How to play'));
+    [
+      'Choose who walks in front. The other three follow.',
+      'Move with the arrow buttons, the keyboard arrows, or tap the ground.',
+      'Walk up to something and press the big yellow button.',
+      'There are three families of squishies. Each has 6 colours and 1 rare.',
+      'The rares are gold, rainbow, and emerald. Each one needs a kids puzzle.',
+      'Paper, pencils, spades and coats go in your bag. Use them at special spots.',
+      'Stars are bonus stickers. They are not needed to finish.'
+    ].forEach(t => card.append(el('p', {}, t)));
+    const b = el('button', {}, 'Back');
+    b.addEventListener('click', openTitle);
+    card.append(b);
+  });
+}
+function openSelect() {
+  mode = 'select';
+  showCard(card => {
+    card.append(el('h2', {}, 'Who leads?'));
+    card.append(el('p', {}, 'Tap a friend. The others will follow.'));
+    const faces = el('div', {class:'faces'});
+    PLAYABLE.forEach(id => {
+      const box = el('button', {class:'char'});
+      box.append(portrait(id, true));
+      box.append(el('h3', {}, KIDS[id].name));
+      box.append(el('p', {}, KIDS[id].blurb));
+      box.addEventListener('click', () => begin(id));
+      faces.append(box);
+    });
+    card.append(faces);
+    const back = el('button', {class:'ghost'}, 'Back');
+    back.addEventListener('click', openTitle);
+    card.append(back);
+  });
+}
+function begin(id) {
+  const unlocked = Math.max(unlockLevel(), state ? state.unlocked || 1 : 1);
+  state = blankState(id);
+  state.unlocked = unlocked;
+  mode = 'play';
+  closeModal();
+  enter('classroom', 'default');
+  save();
+  setTimeout(() => {
+    if (!state || state.flags.tut) return;
+    state.flags.tut = true;
+    save();
+    say([
+      {name:kidName(), text:'The squishies are still at school. We need a plan, two coats, two spades, and every squishy.'},
+      {name:buddy(), text:'Use the arrow buttons. The yellow button does things. We will follow you.'}
+    ]);
+  }, 500);
+}
+function beginChapter(n) {
+  const prev = loadState();
+  const leader = (prev && prev.leader) || (state && state.leader) || 'ava';
+  state = blankState(leader);
+  state.unlocked = Math.max(unlockLevel(), n);
+  state.items.coatMaple = n >= 2;
+  state.items.coatButton = n >= 2;
+  state.items.plan = n >= 2;
+  state.flags.planRead = n >= 2;
+  state.flags.teacherLocked = n >= 2;
+  state.items.spades = n >= 2 ? 2 : 0;
+  if (n >= 2) grantSet('school');
+  if (n >= 3) { grantSet('park'); state.flags.busArrived = true; }
+  state.level = n;
+  mode = 'play';
+  closeModal();
+  if (n === 1) enter('classroom', 'default');
+  if (n === 2) enter('lawn', 'tunnel');
+  if (n === 3) enter('departures', 'bus');
+  save();
+}
+function continueGame() {
+  const loaded = loadState();
+  if (!loaded) { openSelect(); return; }
+  state = loaded;
+  refreshDerived();
+  resetTrail();
+  mode = 'play';
+  closeModal();
+}
+
+function openAlbum() {
+  showCard(card => {
+    card.append(el('h2', {}, 'Squishy scores'));
+    SETS.forEach(set => {
+      card.append(el('h3', {}, set.name + '  ' + countSet(set.id) + ' / 7'));
+      const wrap = el('div', {class:'pips'});
+      SQUISHIES.filter(s => s.set === set.id).forEach(s => {
+        const got = !!state.squishies[s.id];
+        const b = el('div', {class:'pip' + (got ? ' got' : '') + (s.rare ? ' rare' : '')});
+        b.style.setProperty('--c', s.hex);
+        b.textContent = got ? s.name : '?';
+        wrap.append(b);
+      });
+      card.append(wrap);
+    });
+    card.append(el('p', {}, 'Stars: ' + (state.stars || 0) + ' / 9'));
+    const b = el('button', {}, 'Close');
+    b.addEventListener('click', closeModal);
+    card.append(b);
+  });
+}
+function openGoals() {
+  showCard(card => {
+    card.append(el('h2', {}, 'Goals'));
+    const ul = el('ul', {class:'goals'});
+    goalList().forEach(it => {
+      ul.append(el('li', {class: it.done ? 'done' : ''}, (it.done ? '✓  ' : '○  ') + it.text));
+    });
+    card.append(ul);
+    const b = el('button', {}, 'Close');
+    b.addEventListener('click', closeModal);
+    card.append(b);
+  });
+}
+function openBag() {
+  const rows = [
+    ['Paper', state.items.paper ? 'In the bag' : 'Not yet'],
+    ['Pencils', state.items.pencils ? 'In the bag' : 'Not yet'],
+    ['Plan', state.items.plan ? 'Ready to read' : 'Not yet'],
+    ['Spades', (state.items.spades || 0) + ' / 2'],
+    ['Biscuit', state.items.biscuit ? 'In the bag' : 'Not yet'],
+    ['Shed key', state.items.key ? 'In the bag' : 'Not yet'],
+    ["Ms Maple's coat", state.items.coatMaple ? 'In the bag' : 'Not yet'],
+    ["Miss Button's coat", state.items.coatButton ? 'In the bag' : 'Not yet'],
+    ['Tall disguise', state.flags.disguised ? 'Wearing it' : 'Not yet']
+  ];
+  showCard(card => {
+    card.append(el('h2', {}, 'Bag'));
+    const ul = el('ul', {class:'goals'});
+    rows.forEach(([name, val]) => {
+      const have = val !== 'Not yet';
+      ul.append(el('li', {class: have ? 'done' : ''}, name + ': ' + val));
+    });
+    card.append(ul);
+    const b = el('button', {}, 'Close');
+    b.addEventListener('click', closeModal);
+    card.append(b);
+  });
+}
+function openPlan() {
+  if (!state.items.plan) {
+    say([{name:buddy(), text:'Draw the plan first. We need paper, pencils, and the classroom table.'}]);
+    return;
+  }
+  state.flags.planRead = true;
+  save();
+  showCard(card => {
+    card.append(el('h2', {}, 'Our plan'));
+    const c = el('canvas', {class:'plan', width:'900', height:'520'});
+    card.append(c);
+    drawPlan(c);
+    const b = el('button', {}, 'Close');
+    b.addEventListener('click', closeModal);
+    card.append(b);
+  });
+}
+function drawPlan(c) {
+  const g = c.getContext('2d');
+  const w = c.width, h = c.height;
+  g.fillStyle = '#fff8e6';
+  g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#e7b0c4';
+  g.lineWidth = 8;
+  g.strokeRect(12, 12, w - 24, h - 24);
+  g.fillStyle = '#3a2a22';
+  g.font = '800 42px Comic Sans MS, Trebuchet MS, cursive';
+  g.textAlign = 'center';
+  g.fillText('OUR PLAN', w / 2, 70);
+  function panel(x, title) {
+    g.strokeStyle = '#7eb6e0';
+    g.lineWidth = 3;
+    g.strokeRect(x, 100, 260, 280);
+    g.font = '700 20px Comic Sans MS, Trebuchet MS, sans-serif';
+    g.fillText(title, x + 130, 128);
+  }
+  panel(40, '1. Cupboard');
+  panel(320, '2. Sandpit');
+  panel(600, '3. Run!');
+  // cupboard
+  g.fillStyle = '#c9843a';
+  g.fillRect(70, 180, 90, 140);
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 3; g.strokeRect(70, 180, 90, 140);
+  g.beginPath(); g.arc(150, 230, 18, 0, 7); g.stroke();
+  g.fillStyle = SKIN; g.beginPath(); g.arc(115, 230, 12, 0, 7); g.fill();
+  g.fillStyle = '#3aaa6a'; g.fillRect(104, 242, 22, 28);
+  g.font = '700 16px Comic Sans MS, sans-serif';
+  g.fillStyle = '#3a2a22';
+  g.fillText('Ms Maple counts', 170, 360);
+  // sand
+  g.fillStyle = '#e6c98a';
+  g.beginPath(); g.ellipse(450, 250, 90, 40, 0, 0, 7); g.fill();
+  g.fillStyle = '#5a4632';
+  g.beginPath(); g.ellipse(450, 260, 28, 16, 0, 0, 7); g.fill();
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 4;
+  g.beginPath(); g.moveTo(390, 200); g.lineTo(410, 270); g.stroke();
+  g.beginPath(); g.moveTo(500, 190); g.lineTo(480, 270); g.stroke();
+  g.fillStyle = '#3a2a22';
+  g.fillText('Dig with spades', 450, 360);
+  // kids running
+  g.fillStyle = '#ff79b0'; g.fillRect(640, 230, 16, 28);
+  g.fillStyle = '#8b6cff'; g.fillRect(670, 214, 16, 44);
+  g.fillStyle = '#3aa0ff'; g.fillRect(700, 242, 14, 18);
+  g.fillStyle = '#ffe14a'; g.fillRect(726, 240, 14, 20);
+  g.strokeStyle = '#67b35a'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(760, 300); g.lineTo(820, 180); g.lineTo(800, 300); g.stroke();
+  g.fillStyle = '#3a2a22';
+  g.fillText('To the park!', 730, 360);
+  g.font = '700 22px Comic Sans MS, sans-serif';
+  g.fillText('Then the bus, then Mexico!', w / 2, 440);
+  g.font = '700 18px Comic Sans MS, sans-serif';
+  g.fillText('by ' + PLAYABLE.map(id => KIDS[id].name).join(', '), w / 2, 480);
+}
+
+function orderGame(opts) {
+  let round = 0, step = 0, locked = false;
+  const status = el('p', {class:'status'}, opts.show ? 'Watch...' : 'Your turn');
+  const row = el('div', {class:'choices'});
+  const btns = {};
+  let timer = 0;
+  opts.buttons.forEach(b => {
+    const n = el('button', {class:'choice'}, b.label);
+    n.style.background = b.bg || '#fff';
+    n.addEventListener('click', () => press(b.id, n));
+    btns[b.id] = n;
+    row.append(n);
+  });
+  function press(id, node) {
+    if (locked) return;
+    const seq = opts.rounds[round];
+    const spec = opts.buttons.find(b => b.id === id);
+    if (spec && spec.freq) tone(spec.freq, .12, 'triangle');
+    if (id !== seq[step]) {
+      sfx('no');
+      node.classList.add('shake');
+      setTimeout(() => node.classList.remove('shake'), 280);
+      step = 0;
+      status.textContent = 'Not quite. Try again!';
+      if (opts.show) playShow();
+      return;
+    }
+    step++;
+    status.textContent = step + ' / ' + seq.length;
+    if (step >= seq.length) {
+      round++;
+      step = 0;
+      if (round >= opts.rounds.length) {
+        locked = true;
+        succeed(row, opts.onWin);
+      } else if (opts.show) {
+        status.textContent = 'Next one!';
+        playShow();
+      } else status.textContent = 'Next!';
+    }
+  }
+  function playShow() {
+    locked = true;
+    const seq = opts.rounds[round];
+    let i = 0;
+    clearInterval(timer);
+    timer = setInterval(() => {
+      Object.values(btns).forEach(b => b.classList.remove('lit'));
+      if (i >= seq.length) {
+        clearInterval(timer);
+        locked = false;
+        status.textContent = 'Your turn!';
+        return;
+      }
+      const id = seq[i];
+      btns[id].classList.add('lit');
+      const spec = opts.buttons.find(b => b.id === id);
+      if (spec && spec.freq) tone(spec.freq, .12, 'triangle');
+      i++;
+    }, 680);
+  }
+  showCard(card => {
+    card.classList.add('wide');
+    card.append(el('h2', {}, opts.title));
+    card.append(el('p', {}, opts.help));
+    card.append(row);
+    card.append(status);
+    addBack(card);
+  });
+  trackMini(() => clearInterval(timer));
+  if (opts.show) playShow();
+}
+function timingGame(opts) {
+  let hits = 0, pos = 0, dir = 1, alive = true, last = performance.now();
+  const bar = el('div', {class:'tbar'});
+  const zone = el('div', {class:'zone'});
+  const needle = el('div', {class:'needle'});
+  bar.append(zone, needle);
+  const status = el('p', {}, '0 / ' + opts.need + '  — tap when the stick is in the green');
+  const btn = el('button', {}, opts.noun || 'Now!');
+  btn.addEventListener('click', () => {
+    if (!alive) return;
+    if (pos >= 0.32 && pos <= 0.68) {
+      hits++;
+      sfx('ok');
+      status.textContent = hits + ' / ' + opts.need;
+      if (opts.onHit) opts.onHit(hits);
+      if (hits >= opts.need) { alive = false; succeed(bar, opts.onWin); }
+    } else {
+      sfx('no');
+      status.textContent = 'Miss! Still ' + hits + ' / ' + opts.need;
+    }
+  });
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    pos += dir * dt * 0.42;
+    if (pos > 1) { pos = 1; dir = -1; }
+    if (pos < 0) { pos = 0; dir = 1; }
+    needle.style.left = (pos * 100) + '%';
+    requestAnimationFrame(loop);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, opts.title));
+    card.append(el('p', {}, opts.help));
+    if (opts.extra) card.append(opts.extra);
+    card.append(bar);
+    card.append(status);
+    card.append(btn);
+    addBack(card);
+  });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
+}
+function searchGame(opts) {
+  let found = false;
+  const grid = el('div', {class:'grid'});
+  const status = el('p', {}, opts.help);
+  opts.cells.forEach(c => {
+    const b = el('button', {class:'choice'}, c.label);
+    if (c.bg) b.style.background = c.bg;
+    b.addEventListener('click', () => {
+      if (found) return;
+      if (c.target) { found = true; succeed(grid, opts.onWin); }
+      else { sfx('no'); b.disabled = true; b.style.opacity = '0.35'; }
+    });
+    grid.append(b);
+  });
+  showCard(card => {
+    card.append(el('h2', {}, opts.title));
+    card.append(status);
+    card.append(grid);
+    addBack(card);
+  });
+}
+
+function openBooks() {
+  orderGame({
+    title: 'Tidy the books',
+    help: 'Tap red, then orange, then yellow, then green.',
+    show: false,
+    buttons: [
+      {id:'r', label:'Red', bg:'#ff6b6b'},
+      {id:'o', label:'Orange', bg:'#ff9a3c'},
+      {id:'y', label:'Yellow', bg:'#ffe14a'},
+      {id:'g', label:'Green', bg:'#7dce6a'}
+    ],
+    rounds: [['r','o','y','g']],
+    onWin: () => {
+      closeModal();
+      if (!state.items.paper && !state.items.plan) {
+        state.items.paper = true;
+        save();
+        say([{name:'Mrs Page', text:'The returns box gives you a sheet of paper. Nicely tidied!'}]);
+      } else say([{name:'Mrs Page', text:'The shelf looks lovely. We already have paper.'}]);
+    }
+  });
+}
+function openFoods() {
+  orderGame({
+    title: 'Lunch memory',
+    help: 'Watch the foods glow, then tap them in the same order.',
+    show: true,
+    buttons: [
+      {id:'pizza', label:'🍕', bg:'#fff'},
+      {id:'apple', label:'🍎', bg:'#fff'},
+      {id:'milk', label:'🥛', bg:'#fff'},
+      {id:'carrot', label:'🥕', bg:'#fff'}
+    ],
+    rounds: [['pizza','apple','milk'], ['milk','carrot','pizza','apple']],
+    onWin: () => grantSquishy('purple', 'Lunch Lucy', 'A purple squishy was under the tray!')
+  });
+}
+function openBells() {
+  orderGame({
+    title: 'Copy the bells',
+    help: 'Watch the animals, then tap them in the same order. This opens the gold chest.',
+    show: true,
+    buttons: [
+      {id:'cat', label:'🐱', bg:'#ff8a8a', freq:523},
+      {id:'duck', label:'🦆', bg:'#ffe14a', freq:587},
+      {id:'frog', label:'🐸', bg:'#8ee08a', freq:659},
+      {id:'dog', label:'🐶', bg:'#8fd3ff', freq:784}
+    ],
+    rounds: [['cat','duck'], ['cat','frog','dog'], ['duck','dog','cat','frog']],
+    onWin: () => grantSquishy('gold', 'Mr Tune', 'The chest clicks. The rare gold squishy is ours!')
+  });
+}
+function openRainbow() {
+  const colors = [
+    {id:'r', label:'Red', bg:'#ff5a5a'},
+    {id:'o', label:'Orange', bg:'#ff9a3c'},
+    {id:'y', label:'Yellow', bg:'#ffe14a'},
+    {id:'g', label:'Green', bg:'#67d36a'},
+    {id:'b', label:'Blue', bg:'#4aa8ff'},
+    {id:'p', label:'Purple', bg:'#b07cff'}
+  ];
+  orderGame({
+    title: 'Rainbow bridge',
+    help: 'Tap red, orange, yellow, green, blue, purple.',
+    show: false,
+    buttons: colors,
+    rounds: [['r','o','y','g','b','p']],
+    onWin: () => orderGame({
+      title: 'Backwards rainbow',
+      help: 'Now go backwards. Start at purple.',
+      show: false,
+      buttons: colors,
+      rounds: [['p','b','g','y','o','r']],
+      onWin: () => grantSquishy('rainbow', 'Pip the parrot', 'The rare rainbow squishy bounces onto the bridge!')
+    })
+  });
+}
+function openBeanbag() {
+  timingGame({
+    title: 'Beanbag hoop',
+    help: 'Tap Throw when the stick is on the green. Get 4 in.',
+    need: 4,
+    noun: 'Throw',
+    onWin: () => grantSquishy('orange', 'Coach', 'Four in the hoop! An orange squishy drops out.')
+  });
+}
+function openPaint() {
+  const map = {r:'#ff5a5a', y:'#ffe14a', b:'#4aa8ff', w:'#ffffff'};
+  const rounds = [['r','y','b','w'], ['y','b','r','y']];
+  let round = 0, selected = 'r', grid = [null, null, null, null], showing = true;
+  const cells = [0, 1, 2, 3].map(() => el('button', {class:'choice'}, ''));
+  const status = el('p', {}, 'Remember this picture...');
+  function paintCells() {
+    cells.forEach((c, i) => {
+      const id = showing ? rounds[round][i] : grid[i];
+      c.style.background = id ? map[id] : '#ddd';
+      c.textContent = '';
+    });
+  }
+  function check() {
+    if (grid.some(v => !v)) return;
+    if (grid.every((v, i) => v === rounds[round][i])) {
+      round++;
+      if (round >= rounds.length) { succeed(status, () => grantSquishy('red', 'Miss Dot', 'The painting wiggles and a red squishy pops out!')); return; }
+      grid = [null, null, null, null];
+      showing = true;
+      status.textContent = 'Yes! Remember the next one...';
+      paintCells();
+      setTimeout(() => { showing = false; status.textContent = 'Now paint it.'; paintCells(); }, 1400);
+    } else {
+      sfx('no');
+      status.textContent = 'Not quite. Look again.';
+      showing = true;
+      grid = [null, null, null, null];
+      paintCells();
+      setTimeout(() => { showing = false; status.textContent = 'Try the painting.'; paintCells(); }, 1400);
+    }
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Copy the painting'));
+    card.append(el('p', {}, 'Look at the four colours, then paint the same picture.'));
+    const g = el('div', {class:'grid'});
+    cells.forEach((c, i) => {
+      c.addEventListener('click', () => {
+        if (showing) return;
+        grid[i] = selected;
+        paintCells();
+        check();
+      });
+      g.append(c);
+    });
+    card.append(g);
+    const pal = el('div', {class:'choices'});
+    Object.keys(map).forEach(id => {
+      const b = el('button', {class:'choice'}, id === 'w' ? 'White' : '');
+      b.style.background = map[id];
+      b.addEventListener('click', () => { selected = id; });
+      pal.append(b);
+    });
+    card.append(status);
+    card.append(pal);
+    addBack(card);
+    paintCells();
+    setTimeout(() => { showing = false; status.textContent = 'Now paint it. Pick a colour, then tap a square.'; paintCells(); }, 1500);
+  });
+}
+function openKeySearch() {
+  const stuff = [
+    {label:'🧦', target:false}, {label:'🎱', target:false}, {label:'✏️', target:false},
+    {label:'🔑', target:true}, {label:'🧤', target:false}, {label:'🎾', target:false}
+  ];
+  searchGame({
+    title: 'Lost property',
+    help: 'Tap the shed key.',
+    cells: stuff,
+    onWin: () => {
+      closeModal();
+      state.items.key = true;
+      save();
+      say([{name:buddy(), text:'The shed key! The caretaker will be glad we found it.'}]);
+    }
+  });
+}
+function openShed() {
+  if ((state.items.spades || 0) >= 2) {
+    say([{name:'Caretaker', text:'Those two spades are already in the bag.'}]);
+    return;
+  }
+  if (!state.items.key) {
+    say([{name:'Caretaker', text:'The shed is locked. Try the lost-property box in the corridor.'}]);
+    return;
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Which tool digs?'));
+    card.append(el('p', {}, 'Tap the spade. We need two of them for the sandpit.'));
+    const status = el('p', {}, '');
+    const row = el('div', {class:'choices'});
+    [['🧹 Broom', false], ['🪣 Bucket', false], ['⛏️ Spade', true]].forEach(([label, ok]) => {
+      const b = el('button', {class:'choice'}, label);
+      b.addEventListener('click', () => {
+        if (!ok) { sfx('no'); status.textContent = 'That will not dig a tunnel.'; return; }
+        state.items.spades = 2;
+        save();
+        closeModal();
+        say([{name:buddy(), text:'Two spades! The sandpit is next, after the squishies and Ms Maple.'}]);
+      });
+      row.append(b);
+    });
+    card.append(row);
+    card.append(status);
+    addBack(card);
+  });
+}
+function openMash(opts) {
+  let n = 0;
+  const status = el('p', {}, '0 / ' + opts.need);
+  const btn = el('button', {}, opts.noun);
+  const art = el('div', {class:'swingbox'});
+  art.append(el('div', {}, opts.emoji || '🎢'));
+  art.style.pointerEvents = 'none';
+  btn.style.minWidth = '180px';
+  btn.style.minHeight = '72px';
+  btn.style.fontSize = '28px';
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (n >= opts.need) return;
+    n++;
+    sfx('ok');
+    status.textContent = n + ' / ' + opts.need;
+    art.style.transform = 'rotate(' + ((n % 2 === 0 ? -1 : 1) * Math.min(n, 8) * 4) + 'deg)';
+    if (n >= opts.need) {
+      btn.disabled = true;
+      succeed(art, opts.onWin);
+    }
+  });
+  showCard(card => {
+    card.append(el('h2', {}, opts.title));
+    card.append(el('p', {}, opts.help));
+    card.append(art);
+    card.append(status);
+    card.append(btn);
+    addBack(card);
+  });
+}
+function openSwing() {
+  openMash({
+    title: 'Swings', need: 8, noun: 'Swing!', emoji: '🧒',
+    help: 'Tap Swing until you are high enough to grab the mint squishy.',
+    onWin: () => grantSquishy('mint', 'Darcey', 'I grabbed the mint squishy at the top!')
+  });
+}
+function openSeesaw() {
+  openMash({
+    title: 'Seesaw', need: 6, noun: 'Bounce!', emoji: '⚖️',
+    help: 'Bounce six times. A lemon squishy is on the other seat.',
+    onWin: () => grantSquishy('lemon', 'Axel', 'Boing! The lemon squishy bounced into my hands!')
+  });
+}
+function openRoundabout() {
+  let meter = 0, spin = false, alive = true, last = performance.now(), angle = 0;
+  const wheel = el('div', {class:'swingbox'});
+  wheel.textContent = '⭕';
+  wheel.style.fontSize = '80px';
+  wheel.style.textAlign = 'center';
+  const status = el('p', {}, 'Hold Spin');
+  const btn = el('button', {}, 'Spin');
+  const down = () => { spin = true; };
+  const up = () => { spin = false; };
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); down(); });
+  btn.addEventListener('pointerup', up);
+  btn.addEventListener('pointerleave', up);
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (spin) { meter += dt; angle += dt * 240; sfxTick = (sfxTick || 0) + dt; }
+    else meter = Math.max(0, meter - dt * 0.25);
+    wheel.style.transform = 'rotate(' + angle + 'deg)';
+    status.textContent = 'Spinning ' + Math.min(100, Math.floor(meter / 1.6 * 100)) + '%';
+    if (meter >= 1.6) { alive = false; succeed(wheel, () => grantSquishy('sky', 'Hallie', 'The sky squishy flew off and I caught it!')); return; }
+    requestAnimationFrame(loop);
+  }
+  let sfxTick = 0;
+  showCard(card => {
+    card.append(el('h2', {}, 'Roundabout'));
+    card.append(el('p', {}, 'Press and hold Spin until it is fast.'));
+    card.append(wheel); card.append(status); card.append(btn); addBack(card);
+  });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
+}
+function openSlide(kind) {
+  const btn = el('button', {}, 'Slide!');
+  const track = el('div', {class:'pit'});
+  const rider = el('div', {class:'mover'}, '🧒');
+  rider.style.left = '12px'; rider.style.top = '12px';
+  track.append(rider);
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    rider.style.transition = 'top 1s linear, left 1s linear';
+    rider.style.left = '75%';
+    rider.style.top = '140px';
+    setTimeout(() => {
+      const grab = el('button', {}, kind === 'blue' ? 'Grab blue!' : 'Grab coral!');
+      grab.addEventListener('click', () => {
+        if (kind === 'blue') grantSquishy('blue', kidName(), 'The blue squishy was at the bottom of the slide!');
+        else grantSquishy('coral', kidName(), 'The coral squishy was waiting in the sand!');
+      });
+      track.append(grab);
+    }, 1000);
+  });
+  showCard(card => {
+    card.append(el('h2', {}, 'Slide'));
+    card.append(el('p', {}, 'Slide down, then grab the squishy.'));
+    card.append(track); card.append(btn); addBack(card);
+  });
+}
+function openDucks() {
+  let hits = 0, alive = true, last = performance.now(), t = 0;
+  const box = el('div', {class:'pondbox'});
+  const ring = el('div', {});
+  ring.style.cssText = 'position:absolute;left:50%;top:70px;width:70px;height:70px;margin-left:-35px;border:4px solid #fff;border-radius:50%;';
+  const duck = el('div', {class:'mover'}, '🦆');
+  box.append(ring, duck);
+  const status = el('p', {}, 'Tap the pond when the duck is in the white ring. 0 / 3');
+  box.addEventListener('pointerdown', () => {
+    const br = box.getBoundingClientRect();
+    const dr = duck.getBoundingClientRect();
+    const cx = br.left + br.width / 2, cy = br.top + 70 + 35;
+    const dx = dr.left + dr.width / 2, dy = dr.top + dr.height / 2;
+    if (Math.hypot(dx - cx, dy - cy) < 48) {
+      hits++;
+      sfx('ok');
+      status.textContent = hits + ' / 3';
+      if (hits >= 3) { alive = false; succeed(box, () => grantSquishy('lavender', 'Hallie', 'The duck brought a lavender squishy!')); }
+    } else status.textContent = 'Quack! Wait for the ring. ' + hits + ' / 3';
+  });
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now; t += dt;
+    const w = box.clientWidth || 300;
+    duck.style.left = (20 + (w - 80) * (0.5 + 0.5 * Math.sin(t * 1.6))) + 'px';
+    duck.style.top = '78px';
+    requestAnimationFrame(loop);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Feed the ducks'));
+    card.append(el('p', {}, 'Tap when the duck swims through the ring.'));
+    card.append(box); card.append(status); addBack(card);
+  });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
+}
+function openHop() {
+  orderGame({
+    title: 'Hopscotch',
+    help: 'Hop from 1 to 8.',
+    show: false,
+    buttons: [1,2,3,4,5,6,7,8].map(n => ({id:String(n), label:String(n), bg:'#fff'})),
+    rounds: [['1','2','3','4','5','6','7','8']],
+    onWin: () => { closeModal(); addStar('starHop'); say([{name:buddy(), text:'Hop, hop, hop! A star sticker was on square 8.'}]); }
+  });
+}
+function openDig() {
+  let n = 0;
+  const pit = el('div', {class:'pit'});
+  const status = el('p', {}, 'Tap Dig. 0 / 8');
+  const btn = el('button', {}, 'Dig!');
+  btn.addEventListener('click', () => {
+    n++;
+    sfx('dig');
+    const sand = el('div', {}, '⛏️');
+    sand.style.position = 'absolute';
+    sand.style.left = (20 + (n * 37) % 200) + 'px';
+    sand.style.top = (40 + n * 12) + 'px';
+    pit.append(sand);
+    status.textContent = n + ' / 8';
+    if (n >= 8) {
+      state.flags.tunnelOpen = true;
+      save();
+      succeed(pit, () => {
+        closeModal();
+        say([{name:kidName(), text:'The hole is deep enough. Let us crawl through!'}]);
+      });
+    }
+  });
+  showCard(card => {
+    card.append(el('h2', {}, 'Dig the tunnel'));
+    card.append(el('p', {}, 'Two spades. Eight big scoops.'));
+    card.append(pit); card.append(status); card.append(btn); addBack(card);
+  });
+}
+function openPassport() {
+  const order = ['😊','⭐','🧳','💖'];
+  const choices = ['😊','⭐','🧳','💖','🎈','🐱'];
+  let placed = [];
+  const slots = order.map(() => el('div', {class:'slot'}, ''));
+  const sample = el('div', {class:'slots'});
+  order.forEach(s => sample.append(el('span', {}, s)));
+  const status = el('p', {}, 'Tap the stickers in the same order as the little picture.');
+  function refresh() { slots.forEach((s, i) => { s.textContent = placed[i] || ''; }); }
+  showCard(card => {
+    card.append(el('h2', {}, 'Make a pass'));
+    card.append(el('p', {}, 'Copy the picture.'));
+    card.append(sample);
+    const row = el('div', {class:'slots'});
+    slots.forEach(s => row.append(s));
+    card.append(row);
+    const buttons = el('div', {class:'choices'});
+    choices.forEach(st => {
+      const b = el('button', {class:'choice'}, st);
+      b.addEventListener('click', () => {
+        const i = placed.length;
+        if (st !== order[i]) { sfx('no'); status.textContent = 'Match the picture from the left.'; return; }
+        placed.push(st);
+        sfx('ok');
+        refresh();
+        if (placed.length === 4) succeed(row, () => grantSquishy('teal', 'Agent', 'Your pass is perfect. Here is a teal squishy!'));
+      });
+      buttons.append(b);
+    });
+    card.append(status); card.append(buttons); addBack(card);
+  });
+}
+function openShelf() {
+  const cells = [];
+  const target = 1 + Math.floor(Math.random() * 15);
+  const colors = ['#4aa8ff','#ff8fb3','#ffe14a','#7dce6a','#c9b6ff','#ff9a3c','#9ad7ff','#e7b0c4'];
+  for (let i = 0; i < 16; i++) {
+    cells.push({label: i === target ? '★' : '·', target: i === target, bg: colors[i % colors.length]});
+  }
+  searchGame({
+    title: 'Duty free',
+    help: 'Find the bottle with a gold star.',
+    cells,
+    onWin: () => grantSquishy('magenta', 'Ava', 'The star bottle had a magenta squishy inside!')
+  });
+}
+function openCups() {
+  const stack = el('div', {});
+  stack.style.minHeight = '40px';
+  timingGame({
+    title: 'Cup tower',
+    help: 'Tap Stack when the stick is in the green. Build 4 cups.',
+    need: 4,
+    noun: 'Stack',
+    extra: stack,
+    onHit(n) { stack.append(el('div', {}, '🥤')); stack.lastChild && (stack.style.fontSize = '28px'); },
+    onWin: () => grantSquishy('peach', 'Hallie', 'The tower stayed up! A peach squishy was under the tray.')
+  });
+}
+function openBalls() {
+  const colors = ['#ff6b6b','#ffd23a','#7dce6a','#8fd3ff','#e7a6ff','#ff9a3c','#fff','#c9b6ff'];
+  let cells = colors.concat(colors).slice(0, 12).map((bg, i) => ({bg, face:false, id:i}));
+  cells[3].face = true;
+  cells[3].bg = '#3557c5';
+  let alive = true;
+  const grid = el('div', {class:'grid'});
+  function render() {
+    grid.replaceChildren();
+    cells.forEach((c, i) => {
+      const b = el('button', {class:'choice'}, c.face ? '◕‿◕' : '');
+      b.style.background = c.bg;
+      b.addEventListener('click', () => {
+        if (!alive) return;
+        if (c.face) { alive = false; succeed(grid, () => grantSquishy('navy', 'Axel', 'I found the navy squishy in the ball pit!')); }
+        else { sfx('no'); b.classList.add('shake'); }
+      });
+      grid.append(b);
+    });
+  }
+  const timer = setInterval(() => {
+    const i = cells.findIndex(c => c.face);
+    const j = (i + 1 + Math.floor(Math.random() * (cells.length - 1))) % cells.length;
+    const tmp = cells[i]; cells[i] = cells[j]; cells[j] = tmp;
+    render();
+  }, 900);
+  showCard(card => {
+    card.append(el('h2', {}, 'Ball pit'));
+    card.append(el('p', {}, 'Tap the navy ball with a face. It wriggles around.'));
+    card.append(grid);
+    addBack(card);
+    render();
+  });
+  trackMini(() => { alive = false; clearInterval(timer); });
+}
+function openPlanes() {
+  let alive = true;
+  const sky = el('div', {class:'skybox'});
+  const status = el('p', {}, 'Tap the green plane.');
+  let n = 0;
+  const timer = setInterval(() => {
+    if (!alive) return;
+    n++;
+    const plane = el('div', {class:'mover'}, '✈️');
+    const lime = n % 4 === 0;
+    plane.style.top = (10 + Math.random() * 110) + 'px';
+    plane.style.left = '-40px';
+    plane.style.transition = 'left 4.2s linear';
+    plane.style.filter = lime ? 'hue-rotate(70deg) saturate(2)' : 'grayscale(.2)';
+    plane.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      if (!alive) return;
+      if (lime) { alive = false; succeed(sky, () => grantSquishy('lime', 'Ava', 'That green plane dropped a lime squishy!')); }
+      else status.textContent = 'That plane is going somewhere else.';
+    });
+    sky.append(plane);
+    requestAnimationFrame(() => { plane.style.left = '110%'; });
+    setTimeout(() => plane.remove(), 4500);
+  }, 1100);
+  showCard(card => {
+    card.append(el('h2', {}, 'Plane spotting'));
+    card.append(el('p', {}, 'Tap only the bright green plane.'));
+    card.append(sky); card.append(status); addBack(card);
+  });
+  trackMini(() => { alive = false; clearInterval(timer); });
+}
+function openCarousel() {
+  let alive = true, x = 0;
+  const box = el('div', {class:'skybox'});
+  const bags = ['👜','🎒','🧳','💖','💼','🎒'].map((label, i) => {
+    const d = el('div', {class:'mover'}, label);
+    d.style.top = '60px';
+    d.dataset.heart = i === 3 ? '1' : '0';
+    d.addEventListener('pointerdown', () => {
+      if (!alive) return;
+      if (d.dataset.heart === '1') { alive = false; succeed(box, () => grantSquishy('rose', 'Darcey', 'The heart suitcase had a rose squishy inside!')); }
+    });
+    box.append(d);
+    return d;
+  });
+  let last = performance.now();
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    x += dt * 80;
+    const w = box.clientWidth || 320;
+    bags.forEach((b, i) => {
+      const px = ((i * 90 + x) % (w + 80)) - 40;
+      b.style.left = px + 'px';
+    });
+    requestAnimationFrame(loop);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Baggage belt'));
+    card.append(el('p', {}, 'Tap the suitcase with the heart.'));
+    card.append(box);
+    addBack(card);
+  });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
+}
+function openMemory() {
+  const faces = ['✈️','🌵','🌮','☀️'];
+  let deck = faces.concat(faces);
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+  }
+  const open = [];
+  const matched = {};
+  let lock = false, timer = 0, alive = true;
+  const buttons = deck.map((face, i) => {
+    const b = el('button', {}, '?');
+    b.addEventListener('click', () => flip(i, b));
+    return b;
+  });
+  function flip(i, b) {
+    if (!alive || lock || matched[i] || open.includes(i)) return;
+    open.push(i);
+    b.textContent = deck[i];
+    if (open.length === 2) {
+      const [a, c] = open;
+      if (deck[a] === deck[c]) {
+        matched[a] = matched[c] = true;
+        open.length = 0;
+        sfx('ok');
+        if (Object.keys(matched).length === deck.length) {
+          alive = false;
+          succeed(buttons[0].parentElement || b, () => grantSquishy('emerald', 'Hallie', 'All the pairs! The rare emerald squishy was the prize!'));
+        }
+      } else {
+        lock = true;
+        sfx('no');
+        timer = setTimeout(() => {
+          buttons[a].textContent = '?';
+          buttons[c].textContent = '?';
+          open.length = 0;
+          lock = false;
+        }, 700);
+      }
+    }
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Match the cards'));
+    card.append(el('p', {}, 'Find the pairs. This puzzle hides the emerald squishy.'));
+    const grid = el('div', {class:'mem'});
+    buttons.forEach(b => grid.append(b));
+    card.append(grid);
+    addBack(card);
+  });
+  trackMini(() => { alive = false; clearTimeout(timer); });
+}
+function openDisguise(onWin) {
+  let step = 0;
+  const stage = el('div', {class:'faces'});
+  const status = el('p', {}, 'Axel stands on Ava. Hallie stands on Darcey.');
+  const btn = el('button', {}, 'Climb up');
+  function drawStep() {
+    stage.replaceChildren();
+    if (step === 0) {
+      PLAYABLE.forEach(id => stage.append(portrait(id, false)));
+    } else if (step === 1) {
+      stage.append(portrait('ava', true));
+      stage.append(portrait('darcey', true));
+      status.textContent = 'Now pull on the two grown-up coats.';
+      btn.textContent = 'Coats on';
+    } else {
+      const c1 = el('canvas', {width:'160', height:'200'});
+      const c2 = el('canvas', {width:'160', height:'200'});
+      drawCoatPerson(c1.getContext('2d'), 80, 180, PAIRS[0], 0);
+      drawCoatPerson(c2.getContext('2d'), 80, 180, PAIRS[1], 0);
+      stage.append(c1, c2);
+      status.textContent = 'Two tall coats. The guard will see grown-ups.';
+      btn.textContent = 'We are ready';
+    }
+  }
+  btn.addEventListener('click', () => {
+    step++;
+    if (step < 3) drawStep();
+    else { addStar('starPhoto'); onWin(); }
+  });
+  showCard(card => {
+    card.append(el('h2', {}, 'Photo booth'));
+    card.append(status);
+    card.append(stage);
+    card.append(btn);
+    addBack(card);
+    drawStep();
+  });
+}
+function openPiano() {
+  let notes = 0;
+  const row = el('div', {class:'choices'});
+  ['#ff6b6b','#ffe14a','#7dce6a','#4aa8ff'].forEach((bg, i) => {
+    const b = el('button', {class:'choice'}, '♪');
+    b.style.background = bg;
+    b.addEventListener('click', () => {
+      tone(523 * Math.pow(2, i / 4), .12, 'sine');
+      notes++;
+      if (notes >= 5) {
+        addStar('starPiano');
+        closeModal();
+        say([{name:'Ava', text:'Nice tune! A star sticker slid out of the piano.'}]);
+      }
+    });
+    row.append(b);
+  });
+  showCard(card => {
+    card.append(el('h2', {}, 'Piano'));
+    card.append(el('p', {}, 'Play any five notes.'));
+    card.append(row);
+    addBack(card);
+  });
+}
+function trySand() {
+  if (state.flags.tunnelOpen) { finishLevel(); return; }
+  const need = digBlockers();
+  if (need.length) {
+    say([{name:buddy(), text:'The sand is not ready. We still need ' + need.join(', ') + '.'}]);
+    return;
+  }
+  openDig();
+}
+function trySecurity() {
+  if (state.flags.securityPassed) { enter('concourse', 'security'); return; }
+  if (!state.flags.disguised) {
+    say([{name:'Guard', text:'Hello! This arch is for grown-ups. I can see small knees. The photo booth and the big coats might help.'}]);
+    return;
+  }
+  state.flags.securityPassed = true;
+  save();
+  sfx('ok');
+  say([
+    {name:'Guard', text:'Good afternoon. What tall coats. Please step through. Have a lovely flight.'},
+    {name:'Hallie', text:'Hee hee. It worked!'}
+  ], () => enter('concourse', 'security'));
+}
+function tryBoard() {
+  if (!mexicoReady()) {
+    const n = countSet('air');
+    say([{name:'Captain Sol', text: n < 7
+      ? 'The Mexico sign is quiet. Squishies on board: ' + n + ' / 7.'
+      : 'Come through security in your tall coats, then the sign will flash.'}]);
+    return;
+  }
+  finishLevel();
+}
+function tryBus() {
+  if (countSet('park') < 7 || !state.flags.busArrived) {
+    say([{name:buddy(), text:'No bus yet. Park squishies: ' + countSet('park') + ' / 7.'}]);
+    return;
+  }
+  sfx('bus');
+  finishLevel();
+}
+function tryDisguise() {
+  if (state.flags.disguised) {
+    say([{name:buddy(), text:'We are already tall inside the coats.'}]);
+    return;
+  }
+  if (!state.items.coatMaple || !state.items.coatButton) {
+    say([{name:'Ava', text:"We need Ms Maple's coat and Miss Button's coat from school."}]);
+    return;
+  }
+  openDisguise(() => {
+    closeModal();
+    state.flags.disguised = true;
+    save();
+    say([{name:'Darcey', text:'Axel is on Ava. Hallie is on me. The coats hide the wiggle. We look like two grown-ups!'}]);
+  });
+}
+
+function station(id, x, y, label, squishId, openFn, drawFn) {
+  return prop({
+    id, x, y, range:78,
+    prompt() { return squishId && state.squishies[squishId] ? 'Again' : label; },
+    sparkle() { return !!(squishId && !state.squishies[squishId]); },
+    use: openFn,
+    draw(g) {
+      if (drawFn) drawFn(g, x, y);
+      if (squishId && !state.squishies[squishId]) drawSquishy(g, x + 34, y - 8, squishId, 0.72);
+      drawLabel(g, x, y + 40, label);
+    }
+  });
+}
+function rareChest(id, x, y, squishId, label, openFn) {
+  return prop({
+    id, x, y, range:78,
+    prompt() { return state.squishies[squishId] ? 'Again' : label; },
+    sparkle() { return !state.squishies[squishId]; },
+    use: openFn,
+    draw(g) {
+      drawChest(g, x, y, !!state.squishies[squishId]);
+      if (!state.squishies[squishId]) drawSquishy(g, x, y - 48, squishId, 0.85);
+    }
+  });
+}
+
+function buildRooms() {
+  const rooms = {};
+  const add = room => { rooms[room.id] = room; };
+  const back = (id, label, to, spawn) => door('back-' + id, 480, 452, label, to, spawn || id);
+
+  add(R('classroom', 'Classroom', {
+    floor:'#e6c48a', level:1,
+    spawns:{default:{x:470, y:300}},
+    entities:[
+      desk(50, 100), desk(50, 180), desk(50, 260), desk(50, 350),
+      desk(220, 100), desk(220, 180), desk(220, 260),
+      blocker('tdesk', 630, 90, 210, 54, '#b87530'),
+      blocker('wtable', 610, 270, 210, 54, '#d7a15a'),
+      blocker('shelf', 860, 80, 70, 170, '#8a5a32'),
+      prop({
+        id:'pencils', x:730, y:180, range:78,
+        prompt(){ return (!state.items.pencils && !state.items.plan) ? 'Pencils' : null; },
+        sparkle(){ return !state.items.pencils && !state.items.plan; },
+        use(){ state.items.pencils = true; save(); say([{name:kidName(), text:'A whole pot of pencils. Now we can draw.'}]); },
+        draw(g){
+          if (state.items.pencils || state.items.plan) return;
+          roundRect(g, 716, 112, 28, 22, 4); fillStroke(g, '#e23b3b');
+          g.fillStyle = '#ffd23a';
+          g.fillRect(724, 96, 4, 20); g.fillRect(732, 90, 4, 26); g.fillRect(740, 98, 4, 18);
+        }
+      }),
+      prop({
+        id:'table', x:710, y:360, range:78,
+        prompt(){
+          if (state.items.plan) return 'See plan';
+          if (state.items.paper && state.items.pencils) return 'Make plan';
+          return 'Table';
+        },
+        sparkle(){ return !state.items.plan && !!(state.items.paper && state.items.pencils); },
+        use(){
+          if (state.items.plan) { openPlan(); return; }
+          if (!state.items.paper || !state.items.pencils) {
+            say([{name:buddy(), text:'We need paper and pencils on this table before we can draw the plan.'}]);
+            return;
+          }
+          state.items.paper = false;
+          state.items.pencils = false;
+          state.items.plan = true;
+          state.flags.planRead = true;
+          save();
+          openPlan();
+        },
+        draw(g){ drawLabel(g, 710, 248, 'Plan table'); }
+      }),
+      squish('pink', 175, 400),
+      talker('finn', 400, 210, 'finn', 'Finn', [
+        'I am staying for art club. Have a good adventure!',
+        'Something pink is hiding by the desks.',
+        'Mrs Page keeps the paper in the library.'
+      ]),
+      prop({
+        id:'maple', x:790, y:200, range:74,
+        prompt(){ return state.flags.teacherLocked ? null : 'Talk'; },
+        use(){ say([
+          {name:'Ms Maple', text:'Pencils live in the red pot.'},
+          {name:'Ms Maple', text:'If you need me later, a biscuit usually does the trick. I do love counting things in cupboards.'}
+        ]); },
+        draw(g){
+          if (state.flags.teacherLocked) return;
+          drawAdult(g, 790, 200, {shirt:'#3aaa6a', pants:'#2c6b4a', hair:'#c9a27a', bun:true, glasses:true});
+          drawLabel(g, 790, 200 - 108, 'Ms Maple');
+        }
+      }),
+      sign('globe', 540, 200, 'Globe', ['You give the globe a spin.', 'Your finger lands on Mexico.'], {color:'#7ec8ea'}),
+      sign('hamster', 890, 320, 'Hamster', 'The hamster wiggles. A star sticker was under the cage.', {star:'starHamster', color:'#f0c8a0'}),
+      door('to-corr', 480, 452, 'Corridor', 'corridor', 'classroom')
+    ]
+  }));
+
+  const topDoors = [['classroom','Class',90],['library','Library',230],['cloakroom','Cloaks',370],['canteen','Canteen',520],['hall','PE hall',670],['art','Art',820]];
+  const botDoors = [['music','Music',200],['cupboard','Cupboard',480],['playground','Outside',760]];
+  const corrSpawns = {default:{x:480, y:270}};
+  const corrEnts = [
+    prop({
+      id:'lost', x:120, y:300, range:74,
+      prompt(){ return state.items.key ? 'Socks' : 'Search'; },
+      sparkle(){ return !state.items.key; },
+      use(){ if (state.items.key) say([{name:buddy(), text:'Just odd socks left in the box.'}]); else openKeySearch(); },
+      draw(g){ roundRect(g, 96, 270, 48, 36, 6); fillStroke(g, '#c9843a'); drawLabel(g, 120, 250, 'Lost box'); }
+    }),
+    talker('oak', 500, 270, 'adult', 'Mr Oak', [
+      'Lost something shiny? Try the lost-property box.',
+      'The shed key is extra shiny.',
+      'The notice has a little map.'
+    ], {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
+    sign('notice', 860, 280, 'Map', [
+      'Library: paper. Classroom: pencils and the plan table.',
+      'Cloakroom: Miss Button\'s coat. Canteen: a biscuit.',
+      'Cupboard: Ms Maple\'s coat. Music: the gold squishy.',
+      'Outside: shed, slide and sandpit.'
+    ], {color:'#fff3b0'})
+  ];
+  topDoors.forEach(([id, label, x]) => {
+    corrEnts.push(door('to-' + id, x, 112, label, id, 'default'));
+    corrSpawns[id] = {x, y:200};
+  });
+  botDoors.forEach(([id, label, x]) => {
+    corrEnts.push(door('to-' + id, x, 430, label, id, 'default'));
+    corrSpawns[id] = {x, y:340};
+  });
+  add(R('corridor', 'Corridor', {floor:'#e7eef8', level:1, spawns:corrSpawns, entities:corrEnts}));
+
+  add(R('library', 'Library', {
+    floor:'#f3e2c4', level:1,
+    spawns:{default:{x:480, y:330}},
+    entities:[
+      blocker('books', 30, 70, 90, 280, '#6b3a22'),
+      blocker('books2', 840, 70, 90, 240, '#6b3a22'),
+      station('returns', 480, 230, 'Books', null, openBooks, (g, x, y) => {
+        ['#ff6b6b','#ff9a3c','#ffe14a','#7dce6a'].forEach((c, i) => {
+          g.fillStyle = c; g.fillRect(x - 40 + i * 18, y - 30, 14, 36);
+        });
+      }),
+      squish('yellow', 700, 180),
+      talker('page', 250, 300, 'adult', 'Mrs Page', [
+        'Sort the books red, orange, yellow, green and the box will give you paper.',
+        'The yellow squishy likes the right-hand shelf.'
+      ], {shirt:'#d98a4a', pants:'#6a4030', hair:'#6b3a22', bun:true}),
+      back('library', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('cloakroom', 'Cloakroom', {
+    floor:'#f7e7c8', level:1,
+    spawns:{default:{x:480, y:330}},
+    entities:[
+      prop({
+        id:'tacoat', x:420, y:180, range:74,
+        prompt(){ return state.items.coatButton ? null : 'Take coat'; },
+        sparkle(){ return !state.items.coatButton; },
+        use(){
+          state.items.coatButton = true; save();
+          say([{name:buddy(), text:"Miss Button's coat is big enough for Hallie on Darcey's shoulders."}]);
+        },
+        draw(g){
+          if (!state.items.coatButton) drawCoat(g, 420, 170, '#2c3d78');
+          drawLabel(g, 420, 210, "Miss Button");
+        }
+      }),
+      prop({
+        id:'pegnote', x:220, y:180,
+        prompt(){ return 'Pegs'; },
+        use(){ say([{name:kidName(), text:"Ms Maple's peg is empty. Her coat is in the cupboard."}]); },
+        draw(g){ drawCoat(g, 200, 170, '#888'); drawCoat(g, 250, 170, '#c45c8a'); }
+      }),
+      sign('mirror', 760, 250, 'Mirror', 'We look brave. A star sticker is stuck to the glass.', {star:'starMirror', color:'#d7f4ff'}),
+      back('cloakroom', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('canteen', 'Canteen', {
+    floor:'#f8e6c8', level:1,
+    spawns:{default:{x:480, y:340}},
+    entities:[
+      blocker('counter', 80, 70, 800, 50, '#e7d3b0'),
+      prop({
+        id:'biscuit', x:180, y:160, range:74,
+        prompt(){ return state.items.biscuit || state.flags.teacherLocked ? null : 'Biscuit'; },
+        sparkle(){ return !state.items.biscuit && !state.flags.teacherLocked; },
+        use(){ state.items.biscuit = true; save(); say([{name:'Lunch Lucy', text:'One biscuit for Ms Maple. She counts better when she is happy.'}]); },
+        draw(g){ if (!state.items.biscuit && !state.flags.teacherLocked) { g.font='28px sans-serif'; g.textAlign='center'; g.fillText('🍪', 180, 150); } }
+      }),
+      station('lunch', 620, 220, 'Lunch game', 'purple', openFoods),
+      talker('lucy', 400, 220, 'adult', 'Lunch Lucy', ['Play my food memory game for a purple squishy.', 'The biscuit is for Ms Maple, not for Axel. Sorry Axel!'], {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
+      back('canteen', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('hall', 'PE hall', {
+    floor:'#f6d7a8', level:1,
+    spawns:{default:{x:480, y:340}},
+    entities:[
+      station('bags', 360, 250, 'Beanbags', 'orange', openBeanbag, (g, x, y) => {
+        g.strokeStyle = '#e23b3b'; g.lineWidth = 6;
+        g.beginPath(); g.arc(x, y - 10, 26, 0, Math.PI * 2); g.stroke();
+      }),
+      talker('coach', 700, 240, 'adult', 'Coach', ['Four beanbags in the hoop, if you please.', 'An orange squishy is the prize.'], {shirt:'#ff5a5a', pants:'#2a2a2a', hair:'#222'}),
+      back('hall', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('art', 'Art room', {
+    floor:'#fde8ef', level:1,
+    spawns:{default:{x:480, y:340}},
+    entities:[
+      station('easel', 520, 230, 'Paint', 'red', openPaint, (g, x, y) => {
+        roundRect(g, x - 28, y - 40, 56, 44, 4); fillStroke(g, '#fff');
+      }),
+      talker('dot', 220, 250, 'adult', 'Miss Dot', ['Copy my little painting.', 'A red squishy is drying behind it.'], {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
+      back('art', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('music', 'Music room', {
+    floor:'#efe4ff', level:1,
+    spawns:{default:{x:480, y:340}},
+    entities:[
+      rareChest('goldchest', 560, 240, 'gold', 'Bells', openBells),
+      talker('tune', 240, 250, 'adult', 'Mr Tune', ['Copy my animal bells and the gold chest will open.', 'It gets a little longer each time. You can try again.'], {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
+      back('music', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('cupboard', 'Cupboard', {
+    floor:'#f3e6c8', level:1,
+    spawns:{default:{x:480, y:360}},
+    paint(g){
+      g.fillStyle = '#f7f1e4';
+      for (let i = 0; i < 4; i++) g.fillRect(40, 80 + i * 36, 120, 24);
+      if (state.flags.teacherLocked) {
+        roundRect(g, 340, 120, 280, 250, 10);
+        fillStroke(g, '#8a5a32');
+        g.fillStyle = '#d7f4ff';
+        g.beginPath(); g.arc(480, 210, 26, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#3a2a22';
+        g.font = '700 14px Trebuchet MS, sans-serif';
+        g.textAlign = 'center';
+        g.fillText('counting...', 480, 250);
+      }
+    },
+    entities:[
+      prop({
+        id:'maplecoat', x:150, y:200, range:74,
+        prompt(){ return state.items.coatMaple ? null : 'Take coat'; },
+        sparkle(){ return !state.items.coatMaple; },
+        use(){
+          state.items.coatMaple = true; save();
+          say([{name:buddy(), text:"Ms Maple's coat is huge. Axel can stand on Ava inside it."}]);
+        },
+        draw(g){ if (!state.items.coatMaple) drawCoat(g, 150, 190, '#7a4a28'); drawLabel(g, 150, 230, "Ms Maple"); }
+      }),
+      prop({
+        id:'lure', x:480, y:300, range:80,
+        prompt(){
+          if (state.flags.teacherLocked) return 'Wave';
+          return state.items.biscuit ? 'Use biscuit' : 'Look';
+        },
+        sparkle(){ return !state.flags.teacherLocked && !!state.items.biscuit; },
+        use(){
+          if (state.flags.teacherLocked) {
+            state.flags.clips = (state.flags.clips || 20) + 3;
+            say([{name:'Ms Maple', text:'Paperclip ' + state.flags.clips + '! I am very happy. Send a postcard!'}]);
+            return;
+          }
+          if (!state.items.biscuit) {
+            say([{name:kidName(), text:'Shelves of paper. A biscuit smell might bring Ms Maple.'}]);
+            return;
+          }
+          state.items.biscuit = false;
+          state.flags.teacherLocked = true;
+          if (!state.items.coatMaple) state.items.coatMaple = true;
+          save();
+          say([
+            {name:'Ms Maple', text:'A biscuit! I will count paperclips in this lovely cupboard.'},
+            {name:'Ms Maple', text:'Please shut the door so I do not lose my place. 1... 2... 3...'},
+            {name:kidName(), text:'The door clicks. She is cosy and counting. We have her coat too.'}
+          ]);
+        },
+        draw(){}
+      }),
+      back('cupboard', 'Corridor', 'corridor')
+    ]
+  }));
+
+  add(R('playground', 'Playground', {
+    floor:'#69c15f', outdoor:true, level:1,
+    spawns:{default:{x:480, y:250}},
+    paint(g){
+      g.fillStyle = '#e6c98a';
+      g.beginPath(); g.ellipse(500, 400, 170, 72, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#c6a15a'; g.lineWidth = 3; g.stroke();
+      if (state.flags.tunnelOpen) {
+        g.fillStyle = '#3a2a22';
+        g.beginPath(); g.ellipse(500, 410, 36, 18, 0, 0, Math.PI * 2); g.fill();
+      }
+    },
+    entities:[
+      door('school', 480, 96, 'School', 'corridor', 'playground'),
+      prop({
+        id:'sand', x:500, y:400, range:90,
+        prompt(){ return state.flags.tunnelOpen ? 'Tunnel' : (digBlockers().length ? 'Sandpit' : 'Dig'); },
+        sparkle(){ return state.flags.tunnelOpen || digBlockers().length === 0; },
+        use: trySand,
+        draw(g){ drawLabel(g, 500, 330, state.flags.tunnelOpen ? 'Tunnel' : 'Sandpit'); }
+      }),
+      prop({
+        id:'shed', x:160, y:230, range:78,
+        prompt(){ return (state.items.spades || 0) >= 2 ? 'Shed' : 'Shed'; },
+        sparkle(){ return (state.items.spades || 0) < 2 && !!state.items.key; },
+        use: openShed,
+        draw(g){
+          roundRect(g, 110, 150, 90, 70, 6); fillStroke(g, '#8a5a32');
+          g.fillStyle = '#6b3a22'; g.beginPath(); g.moveTo(100, 150); g.lineTo(155, 110); g.lineTo(210, 150); g.fill();
+          drawLabel(g, 155, 130, 'Shed');
+        }
+      }),
+      station('pslide', 780, 250, 'Slide', 'blue', () => openSlide('blue'), (g, x, y) => {
+        g.fillStyle = '#4aa8ff';
+        g.beginPath(); g.moveTo(x - 30, y - 40); g.lineTo(x + 40, y + 20); g.lineTo(x + 10, y + 20); g.fill();
+      }),
+      talker('care', 360, 190, 'adult', 'Caretaker', [
+        'The shed key lives in lost property.',
+        'Inside, pick the spade. We have two.',
+        'Dig the sand only when your plan says so.'
+      ], {shirt:'#4aa35a', pants:'#3d3428', hair:'#333', cap:'#3d3428'}),
+      sign('flower', 220, 430, 'Flower', 'A star sticker was on the biggest daisy.', {star:'starFlower', color:'#ff8fb3'})
+    ]
+  }));
+
+  add(R('lawn', 'Playpark', {
+    floor:'#69c15f', outdoor:true, level:2, nopath:false,
+    spawns:{default:{x:470, y:250}, tunnel:{x:130, y:450}, pond:{x:780, y:230}},
+    paint(g){
+      g.fillStyle = '#c6a15a';
+      g.beginPath();
+      g.moveTo(80, 470); g.lineTo(200, 300); g.lineTo(470, 280); g.lineTo(860, 200); g.lineTo(900, 250); g.lineTo(520, 330); g.lineTo(240, 360); g.lineTo(120, 510);
+      g.closePath(); g.fill();
+      g.fillStyle = '#f2f7ea';
+      for (let i = 0; i < 8; i++) {
+        g.beginPath(); g.arc(140 + (i % 4) * 200, 120 + (i > 3 ? 40 : 0), 5, 0, 7); g.fill();
+      }
+    },
+    entities:[
+      station('swings', 160, 190, 'Swings', 'mint', openSwing, (g, x, y) => {
+        g.strokeStyle = '#5c3a22'; g.lineWidth = 6;
+        g.beginPath(); g.moveTo(x - 46, y + 28); g.lineTo(x - 46, y - 52); g.lineTo(x + 46, y - 52); g.lineTo(x + 46, y + 28); g.stroke();
+        g.beginPath(); g.moveTo(x - 18, y - 52); g.lineTo(x - 18, y + 6); g.moveTo(x + 18, y - 52); g.lineTo(x + 18, y + 6); g.stroke();
+        g.fillStyle = '#8a5a32';
+        g.fillRect(x - 32, y + 4, 28, 8); g.fillRect(x + 4, y + 4, 28, 8);
+      }),
+      station('seesaw', 360, 160, 'Seesaw', 'lemon', openSeesaw, (g, x, y) => {
+        g.fillStyle = '#c9843a';
+        g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x - 22, y + 22); g.lineTo(x + 22, y + 22); g.fill();
+        g.strokeStyle = '#3a2a22'; g.lineWidth = 10;
+        g.beginPath(); g.moveTo(x - 58, y - 22); g.lineTo(x + 58, y + 10); g.stroke();
+        g.fillStyle = '#ff7a7a';
+        g.fillRect(x - 62, y - 30, 22, 10);
+        g.fillStyle = '#6ec1ff';
+        g.fillRect(x + 40, y + 4, 22, 10);
+      }),
+      station('spin', 640, 175, 'Spinner', 'sky', openRoundabout, (g, x, y) => {
+        g.fillStyle = '#ff7a7a';
+        g.beginPath(); g.arc(x, y, 36, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#3a2a22'; g.lineWidth = 4; g.stroke();
+        g.beginPath(); g.moveTo(x - 36, y); g.lineTo(x + 36, y); g.moveTo(x, y - 36); g.lineTo(x, y + 36); g.stroke();
+        g.fillStyle = '#ffe14a';
+        g.beginPath(); g.arc(x, y, 8, 0, 7); g.fill();
+      }),
+      station('cslide', 840, 300, 'Slide', 'coral', () => openSlide('coral'), (g, x, y) => {
+        g.fillStyle = '#ff7f6e';
+        g.beginPath(); g.moveTo(x - 28, y - 48); g.lineTo(x + 48, y + 28); g.lineTo(x + 16, y + 36); g.lineTo(x - 36, y - 28); g.closePath(); g.fill();
+        g.strokeStyle = '#3a2a22'; g.lineWidth = 3; g.stroke();
+        g.strokeRect(x - 40, y - 70, 22, 40);
+        g.beginPath(); g.moveTo(x - 40, y - 54); g.lineTo(x - 18, y - 54); g.moveTo(x - 40, y - 40); g.lineTo(x - 18, y - 40); g.stroke();
+      }),
+      prop({
+        id:'ice', x:150, y:400, range:74,
+        prompt(){ return 'Ice cream'; },
+        sparkle(){ return !state.flags.starIce; },
+        use(){
+          showCard(card => {
+            card.append(el('h2', {}, 'Ice cream'));
+            card.append(el('p', {}, 'Pick a flavour. They are all free today.'));
+            const row = el('div', {class:'choices'});
+            ['Strawberry','Chocolate','Lemon','Mint'].forEach(flavor => {
+              const b = el('button', {class:'choice'}, flavor);
+              b.addEventListener('click', () => {
+                closeModal();
+                addStar('starIce');
+                say([
+                  {name:'Ivy', text:flavor + '! A fine choice.'},
+                  {name:'Ivy', text:'Hedge maze tip: go right, then up, for the lilac squishy.'}
+                ]);
+              });
+            });
+            card.append(row);
+            addBack(card);
+          });
+        },
+        draw(g){
+          roundRect(g, 115, 360, 70, 50, 6); fillStroke(g, '#fff');
+          g.fillStyle = '#ff7eb3'; g.fillRect(115, 360, 70, 12);
+          drawLabel(g, 150, 348, 'Ice cream');
+        }
+      }),
+      prop({
+        id:'hop', x:280, y:430, range:70,
+        prompt(){ return 'Hop'; },
+        sparkle(){ return !state.flags.starHop; },
+        use: openHop,
+        draw(g){
+          g.strokeStyle = '#fff'; g.lineWidth = 3; g.fillStyle = '#3a2a22';
+          g.font = '700 14px Trebuchet MS, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          for (let i = 0; i < 5; i++) {
+            const sx = 280;
+            const sy = 400 + i * 22;
+            g.strokeRect(sx - 14, sy - 10, 28, 20);
+            g.fillText(String(i + 1), sx, sy);
+          }
+          drawLabel(g, 280, 372, 'Hopscotch');
+        }
+      }),
+      talker('keeper', 760, 360, 'adult', 'Keeper', [
+        'Swing high for mint. Bounce for lemon. Spin for sky.',
+        'The duck pond has a lavender squishy and the way to the treehouse.',
+        'The airport bus comes when all seven park squishies are together.'
+      ], {shirt:'#2f9e55', pants:'#245c38', hair:'#5a3a22', hat:'#d8c07a'}),
+      prop({
+        id:'bus', x:520, y:470, range:84,
+        prompt(){ return state.flags.busArrived ? 'Board' : 'Bus stop'; },
+        sparkle(){ return !!state.flags.busArrived; },
+        use: tryBus,
+        draw(g){
+          g.strokeStyle = '#3a2a22'; g.lineWidth = 3;
+          g.beginPath(); g.moveTo(520, 470); g.lineTo(520, 400); g.stroke();
+          roundRect(g, 492, 378, 56, 24, 3); fillStroke(g, '#ffe14a');
+          g.fillStyle = '#3a2a22';
+          g.font = '800 11px Trebuchet MS, sans-serif';
+          g.textAlign = 'center';
+          g.fillText('BUS', 520, 392);
+          if (state.flags.busArrived) drawBus(g, busX, 450);
+          else drawLabel(g, 520, 360, 'Bus stop');
+        }
+      }),
+      door('to-pond', 870, 140, 'Pond', 'pond', 'default'),
+      sign('pmap', 340, 130, 'Map', 'Swings and rides are here. Ducks, the maze and the treehouse are through the pond gate.', {color:'#fff'})
+    ]
+  }));
+
+  add(R('pond', 'Duck pond', {
+    floor:'#69c15f', outdoor:true, level:2,
+    spawns:{default:{x:470, y:360}, maze:{x:600, y:360}, tree:{x:800, y:250}},
+    paint(g){
+      g.fillStyle = '#4aa3e0';
+      roundRect(g, 70, 60, 360, 170, 30);
+      g.fill();
+      g.fillStyle = '#8fd38a';
+      g.beginPath(); g.ellipse(180, 130, 16, 8, 0, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(250, 160, 14, 7, 0, 0, 7); g.fill();
+    },
+    entities:[
+      blocker('water', 250, 250, 360, 170, null),
+      station('ducks', 250, 280, 'Ducks', 'lavender', openDucks),
+      prop({
+        id:'frog', x:80, y:280,
+        prompt(){ return 'Frog'; },
+        use(){ say([{name:'Frog', text:'Ribbit! No squishy on this lily. Try the duck.'}]); },
+        draw(g){ g.font = '28px sans-serif'; g.textAlign='center'; g.fillText('🐸', 80, 270); }
+      }),
+      prop({
+        id:'picnic', x:500, y:450, range:70,
+        prompt(){ return 'Sit'; },
+        sparkle(){ return !state.flags.starPicnic; },
+        use(){ addStar('starPicnic'); say([{name:'Hallie', text:'Apples for everyone! There was a star sticker under the blanket.'}]); },
+        draw(g){ g.fillStyle = '#e23b3b'; roundRect(g, 460, 430, 80, 28, 6); g.fill(); drawLabel(g, 500, 420, 'Picnic'); }
+      }),
+      door('to-maze', 640, 400, 'Maze', 'maze', 'default'),
+      door('to-tree', 860, 180, 'Treehouse', 'treehouse', 'default'),
+      door('to-lawn', 160, 460, 'Park', 'lawn', 'pond')
+    ]
+  }));
+
+  add(R('maze', 'Hedge maze', {
+    floor:'#69c15f', outdoor:true, nopath:true, level:2,
+    spawns:{default:{x:180, y:430}},
+    hedges:[
+      {x:0, y:230, w:700, h:28},
+      {x:260, y:70, w:720, h:28}
+    ],
+    entities:[
+      squish('lilac', 830, 160),
+      sign('mhint', 400, 400, 'Sign', 'Go right, then up. The lilac squishy is in the top corner.', {color:'#fff'}),
+      door('mout', 150, 470, 'Pond', 'pond', 'maze')
+    ]
+  }));
+
+  add(R('treehouse', 'Treehouse', {
+    floor:'#e7c49a', level:2,
+    spawns:{default:{x:480, y:340}},
+    entities:[
+      rareChest('rainbowchest', 640, 230, 'rainbow', 'Puzzle', openRainbow),
+      talker('pip', 250, 250, 'parrot', 'Pip', [
+        'Build the rainbow bridge in order, then backwards.',
+        'The rare rainbow squishy is the prize.'
+      ]),
+      back('treehouse', 'Pond', 'pond', 'tree')
+    ]
+  }));
+
+  const depSpawns = {default:{x:480, y:340}, bus:{x:480, y:400}};
+  const depEnts = [
+    talker('info', 480, 260, 'adult', 'Info', [
+      'Check-in and the baggage belt are on this side of security.',
+      'The photo booth is where small people become tall coats.',
+      'After security, the shops and Gate 4 are airside.'
+    ], {shirt:'#f2f2f2', pants:'#2c3e6b', hair:'#6b3a22'}),
+    sign('board', 860, 300, 'Flights', ['Mexico is Gate 4.', 'The sign flashes when every airport squishy is here.'], {color:'#1d3358'})
+  ];
+  [['checkin','Check-in',150],['baggage','Bags',400],['photo','Photos',650]].forEach(([id, label, x]) => {
+    depEnts.push(door('to-' + id, x, 120, label, id, 'default'));
+    depSpawns[id] = {x, y:210};
+  });
+  depEnts.push(door('to-sec', 830, 300, 'Security', 'security', 'default'));
+  depSpawns.security = {x:760, y:360};
+  add(R('departures', 'Departures', {floor:'#d7e3f5', level:3, spawns:depSpawns, entities:depEnts}));
+
+  function land(id, name, floor, extras) {
+    add(R(id, name, {
+      floor, level:3,
+      spawns:{default:{x:480, y:330}},
+      entities:[door('back-' + id, 480, 452, 'Hall', 'departures', id)].concat(extras)
+    }));
+  }
+  land('checkin', 'Check-in', '#e7eef8', [
+    station('pass', 560, 220, 'Pass', 'teal', openPassport),
+    talker('agent', 240, 250, 'adult', 'Agent', ['Make your pass match the little picture.', 'Then I can give you a teal squishy.'], {shirt:'#f4f4f4', pants:'#2c3e6b', hair:'#6b3a22'})
+  ]);
+  land('baggage', 'Baggage belt', '#e7eef8', [
+    station('belt', 520, 240, 'Belt', 'rose', openCarousel),
+    talker('porter', 220, 260, 'adult', 'Porter', ['Watch the belt and tap the suitcase with the heart.'], {shirt:'#3a6ad8', pants:'#243e86', hair:'#222', cap:'#243e86'})
+  ]);
+  land('photo', 'Photo booth', '#fde8ef', [
+    prop({
+      id:'booth', x:520, y:240, range:80,
+      prompt(){ return 'Disguise'; },
+      sparkle(){ return !state.flags.disguised; },
+      use: tryDisguise,
+      draw(g){
+        roundRect(g, 470, 160, 100, 120, 8); fillStroke(g, '#ff8cbc');
+        drawLabel(g, 520, 150, 'Photo booth');
+      }
+    }),
+    talker('cam', 220, 260, 'adult', 'Cam', ['Little ones on shoulders. One coat for each pair.', 'Then you look tall enough for security.'], {shirt:'#333', pants:'#333', hair:'#222'})
+  ]);
+
+  add(R('security', 'Security', {
+    floor:'#d5ddec', level:3,
+    spawns:{default:{x:420, y:340}},
+    entities:[
+      talker('guard', 180, 330, 'adult', 'Guard', () => state.flags.disguised
+        ? ['Those coats are very tall. The arch will let you through.']
+        : ['Hello, small travellers! This lane is for grown-ups.', 'The photo booth is back in the hall.'],
+        {shirt:'#2c4a8a', pants:'#1c2c55', hair:'#222', hat:'#1c2c55', badge:true}),
+      prop({
+        id:'arch', x:680, y:250, range:80,
+        prompt(){ return state.flags.securityPassed ? 'Airside' : 'Security'; },
+        sparkle(){ return !!state.flags.disguised && !state.flags.securityPassed; },
+        use: trySecurity,
+        draw(g){
+          g.strokeStyle = state.flags.disguised ? '#3aaa6a' : '#e23b3b';
+          g.lineWidth = 8;
+          g.strokeRect(640, 150, 80, 110);
+          drawLabel(g, 680, 140, 'Arch');
+        }
+      }),
+      door('back-sec', 480, 452, 'Hall', 'departures', 'security')
+    ]
+  }));
+
+  const shopSpawns = {default:{x:480, y:300}, security:{x:480, y:360}};
+  const shopEnts = [
+    prop({
+      id:'piano', x:480, y:260, range:70,
+      prompt(){ return 'Piano'; },
+      sparkle(){ return !state.flags.starPiano; },
+      use: openPiano,
+      draw(g){ roundRect(g, 440, 230, 80, 36, 6); fillStroke(g, '#222'); drawLabel(g, 480, 220, 'Piano'); }
+    })
+  ];
+  [['duty','Shop',140,140],['cafe','Cafe',340,140],['playzone','Play',540,140],['observation','Planes',760,140]].forEach(([id, label, x, y]) => {
+    shopEnts.push(door('to-' + id, x, y, label, id, 'default'));
+    shopSpawns[id] = {x, y: y + 90};
+  });
+  shopEnts.push(door('to-family', 200, 400, 'Cards', 'family', 'default'));
+  shopEnts.push(door('to-gate', 760, 400, 'Gate', 'gate', 'default'));
+  shopSpawns.family = {x:200, y:320};
+  shopSpawns.gate = {x:700, y:320};
+  shopEnts.push(door('to-security', 480, 460, 'Security', 'security', 'default'));
+  add(R('concourse', 'Airside', {floor:'#d5e4f5', level:3, spawns:shopSpawns, entities:shopEnts}));
+
+  function shop(id, name, floor, extras) {
+    add(R(id, name, {
+      floor, level:3,
+      spawns:{default:{x:480, y:330}},
+      entities:[door('back-' + id, 480, 452, 'Hall', 'concourse', id)].concat(extras)
+    }));
+  }
+  shop('duty', 'Duty free', '#f8e8ff', [
+    station('shelf', 560, 220, 'Bottles', 'magenta', openShelf),
+    talker('clerk', 220, 250, 'adult', 'Clerk', ['One bottle has a gold star. A magenta squishy is inside it.'], {shirt:'#c9b6ff', pants:'#333', hair:'#222'})
+  ]);
+  shop('cafe', 'Cafe', '#fff0dd', [
+    station('cups', 560, 230, 'Cups', 'peach', openCups),
+    talker('barista', 220, 250, 'adult', 'Barista', ['Stack four cups when the stick is in the green.'], {shirt:'#fff', pants:'#6b3a22', hair:'#333', apron:'#6b3a22'})
+  ]);
+  shop('playzone', 'Play zone', '#fff6d8', [
+    station('pit', 540, 240, 'Balls', 'navy', openBalls),
+    talker('helper', 200, 260, 'adult', 'Helper', ['The navy squishy has a face and it moves. Tap that one.'], {shirt:'#ffe14a', pants:'#333', hair:'#6b3a22'})
+  ]);
+  shop('observation', 'Window', '#d7f0ff', [
+    station('spot', 420, 240, 'Planes', 'lime', openPlanes),
+    prop({
+      id:'wave', x:700, y:250, range:70,
+      prompt(){ return 'Wave'; },
+      sparkle(){ return !state.flags.starWave; },
+      use(){ addStar('starWave'); say([{name:'Axel', text:'I waved at a plane! A star sticker blew in.'}]); },
+      draw(g){ drawLabel(g, 700, 230, 'Wave'); }
+    }),
+    talker('spotter', 180, 280, 'adult', 'Spotter', ['Tap the bright green plane for a lime squishy.', 'You can wave as well.'], {shirt:'#2f6fed', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'})
+  ]);
+  shop('family', 'Family room', '#e7ffe8', [
+    rareChest('emchest', 580, 230, 'emerald', 'Cards', openMemory),
+    talker('auntie', 220, 260, 'adult', 'Auntie', ['Match the pairs to win the rare emerald squishy.', 'Take your time. The cards will wait.'], {shirt:'#ffb6d5', pants:'#555', hair:'#6b3a22', bun:true})
+  ]);
+  add(R('gate', 'Gate 4', {
+    floor:'#d5e4f5', level:3,
+    spawns:{default:{x:420, y:340}},
+    paint(g){
+      g.fillStyle = '#b9e6ff';
+      roundRect(g, 60, 60, 840, 150, 12);
+      g.fill();
+      drawPlane(g, 480, 140);
+    },
+    entities:[
+      prop({
+        id:'board', x:700, y:340, range:84,
+        prompt(){ return mexicoReady() ? 'Board' : 'Gate'; },
+        sparkle(){ return mexicoReady(); },
+        use: tryBoard,
+        draw(g){ drawMexicoSign(g, 700, 280, mexicoReady()); }
+      }),
+      talker('pilot', 240, 300, 'adult', 'Captain Sol', () => {
+        const n = countSet('air');
+        if (mexicoReady()) return ['The Mexico sign is flashing. Climb aboard!'];
+        if (!state.flags.securityPassed) return ['I can see you peeping. Security first, then squishies, then we fly.'];
+        return ['Squishies aboard: ' + n + ' / 7. The sign flashes when we have them all.'];
+      }, {shirt:'#1d3358', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'}),
+      door('back-gate', 480, 452, 'Hall', 'concourse', 'gate')
+    ]
+  }));
+
+  // Water solid was given a size by mistake in the blocker helper: x,y,w,h where the helper treats
+  // the first x,y as the solid origin. Pond water solid is set below by replacing it.
+  const pond = rooms.pond;
+  const water = pond.entities.find(e => e.id === 'water');
+  water.solid = {x:70, y:60, w:360, h:170};
+  water.x = 250; water.y = 250;
+  pond.solids = bounds(pond).concat(pond.entities.filter(e => e.solid).map(e => e.solid)).concat(pond.hedges || []);
+  return rooms;
+}
+
+function walkable(room, x, y) {
+  if (x < 14 || y < 14 || x > room.w - 14 || y > room.h - 14) return false;
+  return !hits(x, y, 12, room.solids);
+}
+function nearPoint(room, e) {
+  const range = e.range || 80;
+  for (let r = 0; r <= range; r += 16) {
+    const steps = r === 0 ? 1 : 10;
+    for (let a = 0; a < steps; a++) {
+      const ang = a / steps * Math.PI * 2;
+      const x = e.x + Math.cos(ang) * r;
+      const y = e.y + Math.sin(ang) * r;
+      if (walkable(room, x, y)) return {x, y};
+    }
+  }
+  return null;
+}
+function canReach(room, x0, y0, x1, y1) {
+  if (Math.hypot(x0 - x1, y0 - y1) <= 40 && walkable(room, x0, y0)) return true;
+  const step = 16;
+  const key = (x, y) => Math.round(x / step) + ',' + Math.round(y / step);
+  const q = [[x0, y0]];
+  const seen = new Set([key(x0, y0)]);
+  const dirs = [[step,0],[-step,0],[0,step],[0,-step],[step,step],[step,-step],[-step,step],[-step,-step]];
+  let head = 0;
+  while (head < q.length && q.length < 7000) {
+    const cur = q[head++];
+    if (Math.hypot(cur[0] - x1, cur[1] - y1) <= 42) return true;
+    for (const d of dirs) {
+      const nx = cur[0] + d[0], ny = cur[1] + d[1];
+      const k = key(nx, ny);
+      if (seen.has(k) || !walkable(room, nx, ny)) continue;
+      seen.add(k);
+      q.push([nx, ny]);
+    }
+  }
+  return false;
+}
+function selfTest() {
+  const prev = state;
+  state = blankState('ava');
+  const errors = [];
+  for (const [id, room] of Object.entries(ROOMS)) {
+    const start = room.spawns.default;
+    for (const [name, sp] of Object.entries(room.spawns)) {
+      if (!walkable(room, sp.x, sp.y)) errors.push('stuck spawn ' + id + '.' + name);
+    }
+    for (const e of room.entities) {
+      try { if (e.prompt) e.prompt(); } catch (err) { errors.push('prompt ' + id + ' ' + e.id); }
+      let reached = !start;
+      const range = e.range || 80;
+      for (let r = 0; r <= range && !reached; r += 18) {
+        const steps = r === 0 ? 1 : 8;
+        for (let a = 0; a < steps && !reached; a++) {
+          const ang = a / steps * Math.PI * 2;
+          const x = e.x + Math.cos(ang) * r;
+          const y = e.y + Math.sin(ang) * r;
+          if (walkable(room, x, y) && canReach(room, start.x, start.y, x, y)) reached = true;
+        }
+      }
+      if (!reached) errors.push('unreachable ' + id + '.' + e.id);
+      if (e.to && !ROOMS[e.to]) errors.push('bad door ' + e.to);
+      if (e.to && e.spawn && (!ROOMS[e.to] || !ROOMS[e.to].spawns[e.spawn])) errors.push('bad spawn ' + e.to + ' ' + e.spawn);
+    }
+  }
+  state = prev;
+  return errors;
+}
+function logicTest() {
+  const prev = state;
+  const errors = [];
+  state = blankState('ava');
+  if (digBlockers().length < 4) errors.push('dig should block');
+  state.items.plan = true;
+  state.items.coatMaple = true;
+  state.items.coatButton = true;
+  state.items.spades = 2;
+  state.flags.teacherLocked = true;
+  grantSet('school');
+  if (digBlockers().length) errors.push('dig should open ' + digBlockers().join('|'));
+  state.level = 3;
+  if (mexicoReady()) errors.push('mexico early');
+  state.flags.securityPassed = true;
+  grantSet('air');
+  if (!mexicoReady()) errors.push('mexico late');
+  const rares = SQUISHIES.filter(s => s.rare).map(s => s.id).join(',');
+  if (rares !== 'gold,rainbow,emerald') errors.push(rares);
+  if (SQUISHIES.length !== 21) errors.push('squishy count');
+  state = prev;
+  return errors;
+}
+
+function partySprites() {
+  const list = [];
+  const bob = moving && !reduceMotion ? Math.sin(walkPhase) * 2 : 0;
+  if (state.flags.disguised) {
+    const fi = Math.max(0, PAIRS.findIndex(p => p.ids.includes(state.leader)));
+    const lead = PAIRS[fi];
+    const other = PAIRS[1 - fi];
+    list.push({y: state.py, draw(g){ drawCoatPerson(g, state.px - 78, state.py, lead, bob); }});
+    list.push({y: state.py, draw(g){ drawCoatPerson(g, state.px + 78, state.py, other, 0); }});
+    return list;
+  }
+  list.push({y: state.py, draw(g){ drawKid(g, state.px, state.py, state.leader, state.facing, bob, 1, true, true); }});
+  PLAYABLE.filter(id => id !== state.leader).forEach((id, i) => {
+    const p = trailPoint(i);
+    list.push({y: p.y, draw(g){ drawKid(g, p.x, p.y, id, p.facing, 0, 1, true, false); }});
+  });
+  return list;
+}
+function screenToWorld(cx, cy) {
+  const rect = canvas.getBoundingClientRect();
+  const x = (cx - rect.left) * (cssW / Math.max(1, rect.width));
+  const y = (cy - rect.top) * (cssH / Math.max(1, rect.height));
+  return {x: x / cam.scale + cam.x, y: y / cam.scale + cam.y};
+}
+function computeHover() {
+  if (mode !== 'play' || dialog || modalOpen || !state) return null;
+  const room = ROOMS[state.room];
+  if (!room) return null;
+  let best = null, bd = 1e9, text = '';
+  for (const e of room.entities) {
+    const p = e.prompt && e.prompt();
+    if (!p) continue;
+    const d = Math.hypot(e.x - state.px, e.y - state.py);
+    if (d < (e.range || 80) && d < bd) { best = e; bd = d; text = p; }
+  }
+  return best ? {e:best, text} : null;
+}
+function onGo() {
+  if (dialog) { advanceDialog(); return; }
+  if (mode !== 'play' || modalOpen) return;
+  try { ac(); } catch (e) {}
+  if (!hover) { showToast('Walk up to something, then press the yellow button.'); return; }
+  hover.e.use();
+}
+function onTap(e) {
+  if (mode !== 'play' || dialog || modalOpen) return;
+  const wpt = screenToWorld(e.clientX, e.clientY);
+  const room = ROOMS[state.room];
+  let best = null, bd = 42;
+  for (const ent of room.entities) {
+    const p = ent.prompt && ent.prompt();
+    if (!p) continue;
+    const d = Math.hypot(ent.x - wpt.x, ent.y - wpt.y);
+    if (d < bd) { best = ent; bd = d; }
+  }
+  if (best) {
+    if (Math.hypot(best.x - state.px, best.y - state.py) <= (best.range || 80)) best.use();
+    else { dest = {x:best.x, y:best.y}; destId = best.id; destTimer = 3.2; }
+  } else {
+    dest = {x:wpt.x, y:wpt.y}; destId = null; destTimer = 3.2;
+  }
+}
+function axis() {
+  let x = 0, y = 0;
+  if (held.left || keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) x -= 1;
+  if (held.right || keys.has('ArrowRight') || keys.has('d') || keys.has('D')) x += 1;
+  if (held.up || keys.has('ArrowUp') || keys.has('w') || keys.has('W')) y -= 1;
+  if (held.down || keys.has('ArrowDown') || keys.has('s') || keys.has('S')) y += 1;
+  return {x, y};
+}
+function tryMove(dx, dy) {
+  const room = ROOMS[state.room];
+  state.px += dx;
+  if (hits(state.px, state.py, 12, room.solids)) state.px -= dx;
+  state.py += dy;
+  if (hits(state.px, state.py, 12, room.solids)) state.py -= dy;
+}
+function update(dt) {
+  if (mode === 'play' && state && !dialog && !modalOpen) {
+    const room = ROOMS[state.room];
+    const a = axis();
+    moving = false;
+    if (a.x || a.y) {
+      dest = null; destId = null;
+      const len = Math.hypot(a.x, a.y) || 1;
+      tryMove(a.x / len * 210 * dt, a.y / len * 210 * dt);
+      moving = true;
+      if (Math.abs(a.x) > Math.abs(a.y)) state.facing = a.x > 0 ? 'right' : 'left';
+      else state.facing = a.y > 0 ? 'down' : 'up';
+    } else if (dest) {
+      destTimer -= dt;
+      let tx = dest.x, ty = dest.y;
+      if (destId) {
+        const ent = room.entities.find(en => en.id === destId);
+        if (ent && ent.prompt && ent.prompt() && Math.hypot(ent.x - state.px, ent.y - state.py) <= (ent.range || 80)) {
+          dest = null; destId = null;
+          ent.use();
+        } else if (ent) { tx = ent.x; ty = ent.y; }
+      }
+      if (dest) {
+        const ddx = tx - state.px, ddy = ty - state.py;
+        const dist = Math.hypot(ddx, ddy) || 1;
+        if (dist < 10 || destTimer <= 0) { dest = null; destId = null; }
+        else {
+          tryMove(ddx / dist * 210 * dt, ddy / dist * 210 * dt);
+          moving = true;
+          state.facing = Math.abs(ddx) > Math.abs(ddy) ? (ddx > 0 ? 'right' : 'left') : (ddy > 0 ? 'down' : 'up');
+        }
+      }
+    }
+    if (moving) {
+      walkPhase += dt * 10;
+      if (!trail.length || Math.hypot(trail[0].x - state.px, trail[0].y - state.py) >= 8) {
+        trail.unshift({x:state.px, y:state.py, facing:state.facing});
+        if (trail.length > 120) trail.pop();
+      }
+    }
+    if (state.room === 'lawn' && state.flags.busArrived) busX += (500 - busX) * Math.min(1, dt * 1.4);
+    barkTimer -= dt;
+    if (barkTimer < 0) {
+      barkTimer = 26;
+      const lines = [buddy() + ': I am right behind you!', 'Axel: Are we there yet?', 'Hallie: I like the colours.', kidName() + ': Sparkles mean look closer.'];
+      if (state.level === 2) lines.push('Darcey: I want a turn on the swings!');
+      if (state.level === 3) lines.push('Ava: Walk tall.');
+      showToast(lines[Math.floor(Math.random() * lines.length)]);
+    }
+  }
+  for (let i = floats.length - 1; i >= 0; i--) {
+    floats[i].y -= 26 * dt;
+    floats[i].life -= dt;
+    if (floats[i].life <= 0) floats.splice(i, 1);
+  }
+  hover = computeHover();
+}
+function updateCamera(room) {
+  const zoom = Math.min(cssW / 560, cssH / 360);
+  const fit = Math.min(cssW / room.w, cssH / room.h);
+  const scale = Math.max(zoom, fit);
+  const viewW = cssW / scale;
+  const viewH = cssH / scale;
+  let x = state.px - viewW / 2;
+  let y = state.py - viewH * (state.flags.disguised ? 0.62 : 0.42);
+  if (viewW >= room.w) x = (room.w - viewW) / 2;
+  else x = clamp(x, 0, room.w - viewW);
+  if (viewH >= room.h) y = (room.h - viewH) / 2;
+  else y = clamp(y, 0, room.h - viewH);
+  cam = {x, y, scale};
+}
+function drawRoomBg(g, room) {
+  if (room.outdoor) {
+    const sky = g.createLinearGradient(0, 0, 0, 170);
+    sky.addColorStop(0, '#7ec8ff');
+    sky.addColorStop(1, '#d9f5c8');
+    g.fillStyle = sky;
+    g.fillRect(0, 0, room.w, 170);
+    g.fillStyle = room.floor || '#69c15f';
+    g.fillRect(0, 150, room.w, room.h);
+    g.fillStyle = '#ffe14a';
+    g.beginPath(); g.arc(80, 48, 26, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.9)';
+    for (let i = 0; i < 3; i++) {
+      const cx = ((i * 320 + time * 16) % (room.w + 140)) - 70;
+      g.beginPath(); g.ellipse(cx, 36 + (i % 2) * 16, 34, 14, 0, 0, Math.PI * 2); g.fill();
+    }
+  } else {
+    g.fillStyle = room.floor || '#f0d8b0';
+    g.fillRect(0, 0, room.w, room.h);
+    g.strokeStyle = 'rgba(90,60,30,.08)';
+    g.lineWidth = 1;
+    for (let x = 0; x < room.w; x += 48) {
+      for (let y = 60; y < room.h; y += 48) g.strokeRect(x + 2, y, 44, 44);
+    }
+    g.fillStyle = '#fff8ee';
+    g.fillRect(0, 0, room.w, 44);
+    g.fillStyle = '#e2b56a';
+    g.fillRect(0, 44, room.w, 8);
+  }
+  if (room.paint) room.paint(g);
+}
+function renderWorld(g) {
+  const room = ROOMS[state.room];
+  if (!room) return;
+  updateCamera(room);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = room.outdoor ? '#8ecbff' : '#d9c39a';
+  g.fillRect(0, 0, cssW, cssH);
+  g.setTransform(dpr * cam.scale, 0, 0, dpr * cam.scale, -cam.x * cam.scale * dpr, -cam.y * cam.scale * dpr);
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  drawRoomBg(g, room);
+  if (room.hedges) {
+    for (const h of room.hedges) {
+      roundRect(g, h.x, h.y, h.w, h.h, 8);
+      fillStroke(g, '#2f8f45');
+    }
+  }
+  const sprites = [];
+  for (const e of room.entities) {
+    sprites.push({
+      y: e.solid ? e.solid.y + e.solid.h : e.y,
+      draw() {
+        e.draw(g);
+        if (e.sparkle && e.sparkle()) drawStar(g, e.x, e.y - 46, 8, '#fff4b0');
+      }
+    });
+  }
+  partySprites().forEach(p => sprites.push(p));
+  sprites.sort((a, b) => a.y - b.y);
+  sprites.forEach(s => s.draw(g));
+  if (hover && !dialog) {
+    g.strokeStyle = '#ffcf33';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.arc(hover.e.x, hover.e.y, 26 + Math.sin(time * 5) * 2, 0, Math.PI * 2);
+    g.stroke();
+  }
+  g.font = '800 16px Trebuchet MS, sans-serif';
+  g.textAlign = 'center';
+  for (const f of floats) {
+    g.globalAlpha = Math.max(0, Math.min(1, f.life));
+    g.fillStyle = f.color;
+    g.fillText(f.text, f.x, f.y);
+  }
+  g.globalAlpha = 1;
+  if (DEBUG) {
+    g.fillStyle = 'rgba(255,0,0,.25)';
+    room.solids.forEach(s => g.fillRect(s.x, s.y, s.w, s.h));
+  }
+}
+function renderAttract(g, w, h) {
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = '#8ecbff';
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = '#69c15f';
+  g.fillRect(0, h * 0.62, w, h);
+  g.fillStyle = '#ffe14a';
+  g.beginPath(); g.arc(w - 70, 60, 28, 0, Math.PI * 2); g.fill();
+  const sc = Math.min(1.3, w / 800);
+  PLAYABLE.forEach((id, i) => {
+    const x = w * (0.18 + i * 0.2);
+    drawKid(g, x, h * 0.62, id, Math.sin(time * 0.4) > 0 ? 'right' : 'left', Math.sin(time * 6 + i) * 2, sc, false, false);
+  });
+}
+function renderBeach(g, w, h) {
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = '#8ecbff';
+  g.fillRect(0, 0, w, h * 0.45);
+  g.fillStyle = '#2f6fed';
+  g.fillRect(0, h * 0.45, w, h * 0.2);
+  g.fillStyle = '#f0d59a';
+  g.fillRect(0, h * 0.62, w, h);
+  g.fillStyle = '#ffe14a';
+  g.beginPath(); g.arc(80, 70, 30, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#3aaa6a';
+  g.fillRect(w - 90, h * 0.5, 16, 70);
+  g.beginPath(); g.ellipse(w - 70, h * 0.48, 28, 16, 0, 0, Math.PI * 2); g.fill();
+  const sc = Math.min(1.2, w / 900);
+  PLAYABLE.forEach((id, i) => drawKid(g, w * (0.2 + i * 0.12), h * 0.78, id, 'right', 0, sc, false, false));
+  SQUISHIES.forEach((s, i) => drawSquishy(g, 30 + (i % 11) * (w / 12), h * 0.9, s.id, 0.55));
+}
+function updateHud() {
+  const hud = document.getElementById('hud');
+  const bar = document.getElementById('bar');
+  if (!state || mode !== 'play') hud.classList.add('hidden');
+  else {
+    hud.classList.remove('hidden');
+    document.getElementById('who').textContent = KIDS[state.leader].name + ' leads';
+    document.getElementById('roompill').textContent = (ROOMS[state.room] && ROOMS[state.room].name) || '';
+    const dots = set => SQUISHIES.filter(s => s.set === set).map(s =>
+      '<i class="' + (state.squishies[s.id] ? 'on' : '') + '" style="background:' + s.hex + '"></i>').join('');
+    document.getElementById('sc-school').innerHTML = 'School ' + countSet('school') + '/7 ' + dots('school');
+    document.getElementById('sc-park').innerHTML = 'Park ' + countSet('park') + '/7 ' + dots('park');
+    document.getElementById('sc-air').innerHTML = 'Airport ' + countSet('air') + '/7 ' + dots('air');
+    document.getElementById('sc-star').textContent = 'Stars ' + (state.stars || 0) + '/9';
+    document.getElementById('objective').textContent = objective();
+    const go = document.getElementById('go');
+    if (dialog) { go.textContent = 'Next'; go.classList.remove('dim'); }
+    else if (hover) { go.textContent = hover.text; go.classList.remove('dim'); }
+    else { go.textContent = 'Look'; go.classList.add('dim'); }
+    document.getElementById('btn-mute').textContent = state.muted ? 'Off' : 'On';
+  }
+  bar.classList.toggle('hidden', mode !== 'play' || modalOpen);
+}
+function render() {
+  const g = ctx;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, cssW, cssH);
+  if (mode === 'play') renderWorld(g);
+  else if (mode === 'ending') renderBeach(g, cssW, cssH);
+  else renderAttract(g, cssW, cssH);
+  updateHud();
+}
+function resize() {
+  const r = document.getElementById('stage').getBoundingClientRect();
+  cssW = Math.max(320, r.width || 960);
+  cssH = Math.max(180, r.height || 540);
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.style.width = (r.width || cssW) + 'px';
+  canvas.style.height = (r.height || cssH) + 'px';
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+}
+function onKeyDown(e) {
+  const k = e.key;
+  const moveKey = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','a','A','w','W','s','S','d','D'].includes(k);
+  if (moveKey) { keys.add(k); e.preventDefault(); return; }
+  if (e.repeat) return;
+  if (k === 'Escape') {
+    if (dialog) { dialog = null; renderDialog(); }
+    else if (modalOpen && mode === 'play') closeModal();
+    return;
+  }
+  if (k === 'e' || k === 'E') { e.preventDefault(); onGo(); return; }
+  if (k === ' ' || k === 'Enter') {
+    if (dialog) { e.preventDefault(); advanceDialog(); return; }
+    if (document.activeElement && document.activeElement.closest && document.activeElement.closest('button')) return;
+    e.preventDefault();
+    onGo();
+    return;
+  }
+  if (mode !== 'play' || modalOpen) return;
+  if (k === 'i' || k === 'I') openBag();
+  if (k === 'g' || k === 'G') openGoals();
+  if (k === 'p' || k === 'P') openPlan();
+  if (k === 'm' || k === 'M') { state.muted = !state.muted; save(); }
+}
+function bind() {
+  document.getElementById('d-next').addEventListener('click', advanceDialog);
+  document.getElementById('go').addEventListener('click', onGo);
+  document.getElementById('btn-goals').addEventListener('click', () => { if (mode === 'play') openGoals(); });
+  document.getElementById('btn-bag').addEventListener('click', () => { if (mode === 'play') openBag(); });
+  document.getElementById('btn-plan').addEventListener('click', () => { if (mode === 'play') openPlan(); });
+  document.getElementById('btn-mute').addEventListener('click', () => { if (!state) return; state.muted = !state.muted; save(); });
+  document.querySelectorAll('#dpad button').forEach(btn => {
+    const dir = btn.dataset.dir;
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      held[dir] = true;
+      if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
+    });
+    btn.addEventListener('pointerup', () => { held[dir] = false; });
+    btn.addEventListener('pointercancel', () => { held[dir] = false; });
+  });
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', e => keys.delete(e.key));
+  window.addEventListener('blur', freezeInput);
+  canvas.addEventListener('pointerup', onTap);
+  document.getElementById('who').addEventListener('click', () => {
+    if (mode !== 'play' || !state) return;
+    const names = PLAYABLE.filter(id => id !== state.leader).map(id => KIDS[id].name);
+    say([{name:kidName(), text:names.join(', ') + ' are right behind me.'}]);
+  });
+  ['sc-school','sc-park','sc-air','sc-star'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => { if (mode === 'play') openAlbum(); });
+  });
+  window.addEventListener('resize', resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(document.getElementById('stage'));
+}
+function launchShot() {
+  state = blankState(params.get('leader') || 'ava');
+  const grant = params.get('grant') || '';
+  if (grant === 'school' || grant === 'park' || grant === 'all') {
+    grantSet('school');
+    state.items.plan = true; state.items.coatMaple = true; state.items.coatButton = true;
+    state.items.spades = 2; state.flags.teacherLocked = true; state.flags.planRead = true;
+  }
+  if (grant === 'park' || grant === 'all') { grantSet('park'); state.flags.busArrived = true; }
+  if (grant === 'all') grantSet('air');
+  if (params.get('plan')) state.items.plan = true;
+  if (params.get('disguise')) { state.flags.disguised = true; state.items.coatMaple = true; state.items.coatButton = true; }
+  if (params.get('security')) state.flags.securityPassed = true;
+  const roomId = params.get('room') || 'classroom';
+  const room = ROOMS[roomId] || ROOMS.classroom;
+  const sp = room.spawns[params.get('spawn') || 'default'] || room.spawns.default;
+  state.room = room.id;
+  state.px = sp.x; state.py = sp.y;
+  state.level = Number(params.get('level') || room.level || 1);
+  if (params.get('tunnel')) state.flags.tunnelOpen = true;
+  refreshDerived();
+  resetTrail();
+  mode = 'play';
+  closeModal();
+  if (params.get('open') === 'plan') openPlan();
+  if (params.get('mini') === 'bells') openBells();
+  if (params.get('mini') === 'memory') openMemory();
+  if (params.get('ending')) { state.unlocked = 4; grantSet('school'); grantSet('park'); grantSet('air'); showEnding(); }
+}
+function frame(now) {
+  try {
+    const dt = Math.min(0.05, (now - lastFrame) / 1000 || 0);
+    lastFrame = now;
+    time += dt;
+    update(dt);
+    render();
+  } catch (err) {
+    const elErr = document.getElementById('err');
+    elErr.style.display = 'block';
+    elErr.textContent = 'Something went wobbly. Please refresh the page.';
+    console.error(err);
+    return;
+  }
+  requestAnimationFrame(frame);
+}
+function init() {
+  state = blankState('ava');
+  state.unlocked = unlockLevel();
+  ROOMS = buildRooms();
+  bind();
+  resize();
+  if (params.has('autotest')) {
+    const errors = selfTest().concat(logicTest());
+    const pre = document.createElement('pre');
+    pre.id = 'autotest';
+    pre.textContent = errors.length ? errors.join('\n') : 'OK';
+    document.body.append(pre);
+  }
+  window.SQ = {
+    get state(){ return state; },
+    rooms: () => ROOMS,
+    enter, collect, selfTest, logicTest, digBlockers, begin, beginChapter
+  };
+  if (params.get('play') || params.get('ending')) launchShot();
+  else openTitle();
+  lastFrame = performance.now();
+  requestAnimationFrame(frame);
+}
+window.addEventListener('error', e => {
+  const elErr = document.getElementById('err');
+  elErr.style.display = 'block';
+  elErr.textContent = e.message + ' @' + e.lineno;
+});
+init();
+</script>
+</body>
+</html>
+
