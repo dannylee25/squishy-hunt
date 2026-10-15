@@ -4174,13 +4174,6 @@ function renderWorld(g) {
   partySprites().forEach(p => sprites.push(p));
   sprites.sort((a, b) => a.y - b.y);
   sprites.forEach(s => s.draw(g));
-  if (hover && !dialog) {
-    g.strokeStyle = '#ffcf33';
-    g.lineWidth = 3;
-    g.beginPath();
-    g.arc(hover.e.x, hover.e.y, 26 + Math.sin(time * 5) * 2, 0, Math.PI * 2);
-    g.stroke();
-  }
   g.font = '800 16px Trebuchet MS, sans-serif';
   g.textAlign = 'center';
   for (const f of floats) {
