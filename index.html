@@ -149,13 +149,6 @@
   .passcard span { width:42px; height:48px; display:flex; align-items:center; justify-content:center; font-size:26px; }
   .mem button { min-height:78px; font-size:34px; }
   .swingbox { height:200px; position:relative; border-bottom:4px solid var(--ink); }
-  .peek-row { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin:12px 0; touch-action:manipulation; }
-  .peek-door { position:relative; width:128px; height:180px; padding:78px 8px 10px; background:#8a5a32; color:#fff8e6; font-size:20px; border-radius:16px; }
-  .peek-face { position:absolute; left:50%; top:18px; transform:translateX(-50%); font-size:48px; line-height:1; pointer-events:none; opacity:0; }
-  .peek-door.hot { background:#c9843a; box-shadow:0 0 0 6px #ffcf33; }
-  .peek-door.hot .peek-face { opacity:1; }
-  .peek-door.reading { background:#6b3a22; }
-  .peek-door.reading .peek-face { opacity:1; top:48px; }
   .card > button.story-go { min-width:240px; min-height:84px; font-size:30px; background:var(--yellow); }
   .lesson-q { font-size:34px; font-weight:900; text-align:center; letter-spacing:.5px; margin:10px 0 4px; }
   .card p.lesson-status { text-align:center; font-weight:800; }
@@ -284,6 +277,7 @@ let cssW = 960, cssH = 540, dpr = 1;
 let miniJob = null;
 let winToken = 0;
 let barkTimer = 12;
+let cupboardChase = 0;
 let toastTimer = 0;
 let lastFrame = 0;
 const keys = new Set();
@@ -871,6 +865,49 @@ function gardenGate(id, x, y, label, to, spawn) {
     draw(g) { drawGardenGate(g, x, y, label); }
   });
 }
+function drawStandingBroom(g, x, y) {
+  g.save();
+  g.lineCap = 'round';
+  g.strokeStyle = '#c9843a';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(x, y - 72);
+  g.lineTo(x, y - 10);
+  g.stroke();
+  g.strokeStyle = '#6b4423';
+  g.lineWidth = 2;
+  for (let i = -3; i <= 3; i++) {
+    g.beginPath();
+    g.moveTo(x, y - 12);
+    g.lineTo(x + i * 4, y + 8);
+    g.stroke();
+  }
+  g.restore();
+}
+function drawWedgedBroom(g, x, y) {
+  const knobX = x + 12, knobY = y + 6;
+  const footX = x - 16, footY = y + 34;
+  g.save();
+  g.lineCap = 'round';
+  g.strokeStyle = '#c9843a';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(footX, footY);
+  g.lineTo(knobX, knobY);
+  g.stroke();
+  g.strokeStyle = '#6b4423';
+  g.lineWidth = 2;
+  const dx = knobX - footX, dy = knobY - footY;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len, ny = dx / len;
+  for (let i = -3; i <= 3; i++) {
+    g.beginPath();
+    g.moveTo(footX + dx * 0.12, footY + dy * 0.12);
+    g.lineTo(footX + nx * i * 5, footY + ny * i * 5);
+    g.stroke();
+  }
+  g.restore();
+}
 function drawDoor(g, x, y, label) {
   g.fillStyle = '#d8b56a';
   g.fillRect(x - 26, y + 30, 52, 8);
@@ -1436,6 +1473,10 @@ function planFocus() {
   return 1;
 }
 function schoolHint() {
+  if (state.level === 1 && !state.flags.teacherLocked) {
+    if (!state.flags.hamsterOut) return 'Open the hamster cage. He will run into the cupboard for food.';
+    return 'Wedge the broom under the cupboard handle so Ms Maple stays inside.';
+  }
   const phase = schoolPhase();
   if (phase === 'materials') {
     if (!state.items.paper && !state.items.pencils) return 'First, get paper from the library and pencils from the red pot. Then draw the plan on the classroom table.';
@@ -1485,6 +1526,10 @@ function landsideLeft() {
 function objective() {
   if (!state) return '';
   if (state.level === 1) {
+    if (!state.flags.teacherLocked) {
+      if (!state.flags.hamsterOut) return 'Let the hamster run into the cupboard';
+      return 'Wedge the broom under the cupboard handle';
+    }
     if (!state.items.plan) {
       if (!state.items.paper) return 'Find paper in the library';
       if (!state.items.pencils) return 'Find the pencils in the classroom';
@@ -1723,7 +1768,7 @@ function begin(id) {
     state.flags.tut = true;
     save();
     say([
-      {name:kidName(), text:'First we make a plan. Paper is in the library and pencils are in the red pot.'},
+      {name:kidName(), text:'Ms Maple will not let us into the corridor. Hamster food is in the cupboard.'},
       {name:buddy(), text:'Tap the ground to walk. Everyone we meet will point to the next step.'}
     ]);
   }, 500);
@@ -3331,79 +3376,6 @@ function tryDisguise() {
   });
 }
 
-function openStoryPeek() {
-  if (state.flags.teacherLocked) {
-    say([{name:kidName(), text:'Shh. Ms Maple is in the cupboard with her book. She gave us a little wave.'}]);
-    return;
-  }
-  const cheers = ['Boo!', 'Peek!', 'Hello!', 'Again!'];
-  const need = 4;
-  let hits = 0, spot = Math.floor(Math.random() * 3), alive = true, ready = false;
-  const row = el('div', {class:'peek-row'});
-  const status = el('p', {}, 'Tap the door she is peeking from. 0 / ' + need);
-  const go = el('button', {class:'story-go'}, 'Story time');
-  go.hidden = true;
-  const doors = ['Left', 'Middle', 'Right'].map((label, i) => {
-    const b = el('button', {class:'peek-door'});
-    b.append(el('span', {class:'peek-face'}, '👩'));
-    b.append(document.createTextNode(label));
-    listenDown(b, e => {
-      if (e && e.cancelable) e.preventDefault();
-      if (!alive || ready) return;
-      if (i !== spot) {
-        sfx('no');
-        b.classList.add('shake');
-        setTimeout(() => b.classList.remove('shake'), 280);
-        status.textContent = 'Not that door. She is still peeking. ' + hits + ' / ' + need;
-        return;
-      }
-      hits++;
-      sfx('ok');
-      if (hits >= need) {
-        ready = true;
-        doors.forEach(d => d.classList.remove('hot'));
-        status.textContent = 'She wants a quiet story. Tap Story time.';
-        go.hidden = false;
-        return;
-      }
-      spot = (spot + 1 + Math.floor(Math.random() * 2)) % 3;
-      showPeek();
-      status.textContent = cheers[hits - 1] + '  ' + hits + ' / ' + need;
-    });
-    row.append(b);
-    return b;
-  });
-  function showPeek() {
-    doors.forEach((d, i) => d.classList.toggle('hot', i === spot));
-  }
-  showPeek();
-  listenDown(go, e => {
-    if (e && e.cancelable) e.preventDefault();
-    if (!alive || !ready) return;
-    alive = false;
-    doors[1].classList.add('reading');
-    doors[1].querySelector('.peek-face').textContent = '📖';
-    status.textContent = 'The door is shut. Shh.';
-    go.hidden = true;
-    succeed(row, () => {
-      state.flags.teacherLocked = true;
-      save();
-      closeModal();
-      say([
-        {name:'Ms Maple', text:'What a lovely game. I shall read one quiet story.'},
-        {name:kidName(), text:'The cupboard door is shut. She is happy with her book.'}
-      ], () => maybeShowPlan());
-    });
-  });
-  showCard(card => {
-    card.append(el('h2', {}, 'Peek-a-book'));
-    card.append(el('p', {}, 'Ms Maple peeks from one cupboard door. Tap that door.'));
-    card.append(row);
-    card.append(status);
-    card.append(go);
-    addBack(card);
-  });
-}
 function station(id, x, y, label, squishId, openFn, drawFn, extraSpots) {
   const labelY = y + (drawFn ? 40 : 28);
   const spots = [{x, y: labelY}];
@@ -3492,7 +3464,6 @@ function buildRooms() {
           state.items.plan = true;
           state.flags.planRead = true;
           state.flags.planStep1 = true;
-          state.flags.teacherLocked = true;
           save();
           openPlan();
         },
@@ -3505,25 +3476,26 @@ function buildRooms() {
         }
       }),
       squish('pink', 175, 400),
-      talker('finn', 400, 210, 'finn', 'Finn', () => schoolLines({
-        materials: 'I am staying for art club. Mrs Page keeps the paper, and the red pot has pencils.',
-        coats: 'Step 1: both coats hang in the cloakroom. One tap takes them both.',
-        spades: 'Step 2: the shed key is in the lost box. The spades are in the playground shed.',
-        dig: 'The digging bit is just outside. Dig down, then across, then up.',
-        leave: 'The pink squishy hides by the desks. Then crawl through the tunnel.'
-      })),
+      talker('finn', 400, 210, 'finn', 'Finn', () => {
+        if (!state.flags.teacherLocked) {
+          if (!state.flags.hamsterOut) return ['Open the hamster cage. Ms Maple will chase him into the cupboard.'];
+          return ['Use the broom to shut her in the cupboard, then you can escape!'];
+        }
+        return schoolLines({
+          materials: 'I am staying for art club. Mrs Page keeps the paper, and the red pot has pencils.',
+          coats: 'Step 1: both coats hang in the cloakroom. One tap takes them both.',
+          spades: 'Step 2: the shed key is in the lost box. The spades are in the playground shed.',
+          dig: 'The digging bit is just outside. Dig down, then across, then up.',
+          leave: 'The pink squishy hides by the desks. Then crawl through the tunnel.'
+        });
+      }),
       prop({
         id:'maple', x:790, y:200, range:74,
         spots: [{x:790, y:160}, {x:790, y:130}, {x:790, y:88}],
-        prompt(){ return state.flags.teacherLocked ? null : 'Talk'; },
-        use(){ say([
-          {name:'Ms Maple', text: schoolHint()},
-          {name:'Ms Maple', text: schoolPhase() === 'materials'
-            ? 'The red pot on my desk has the pencils.'
-            : 'I am already in the cupboard. The plan starts with the coats.'}
-        ]); },
+        prompt(){ return (state.flags.teacherLocked || state.flags.hamsterOut) ? null : 'Talk'; },
+        use(){ say([{name:'Ms Maple', text:'The lesson is not finished!'}]); },
         draw(g){
-          if (state.flags.teacherLocked) return;
+          if (state.flags.teacherLocked || state.flags.hamsterOut) return;
           drawAdult(g, 790, 200, {shirt:'#3aaa6a', pants:'#2c6b4a', hair:'#c9a27a', bun:true, glasses:true});
           drawLabel(g, 790, 200 - 108, 'Ms Maple');
         }
@@ -3543,14 +3515,16 @@ function buildRooms() {
         use(){
           addStar('starHamster');
           if (state.flags.hamsterOut) {
-            say([{name:kidName(), text:'Nibbles is back in his nest, nibbling a seed.'}]);
+            say([{name:kidName(), text:'Nibbles ran into the cupboard for hamster food.'}]);
             return;
           }
           state.flags.hamsterOut = true;
+          cupboardChase = performance.now();
           save();
           say([
-            {name:kidName(), text:'The cage opens. Nibbles zooms once around the room, then hops back in for a seed.'},
-            {name:'Ms Maple', text: 'Good hamster. ' + schoolHint()}
+            {name:kidName(), text:'Nibbles escapes and runs into the cupboard to find food.'},
+            {name:'Ms Maple', text:'Nibbles! Come back here!'},
+            {name:'Finn', text:'Use the broom to shut her in the cupboard, then you can escape!'}
           ]);
         },
         draw(g){
@@ -3575,30 +3549,70 @@ function buildRooms() {
       prop({
         id:'cupdoor', x:300, y:400, range:74,
         spots: [{x:300, y:384}, {x:300, y:416}, {x:300, y:452}],
-        prompt(){ return state.flags.teacherLocked ? 'Shh' : 'Peek'; },
-        sparkle(){ return !state.flags.teacherLocked; },
+        prompt(){ return state.flags.teacherLocked ? 'Shh' : 'Cupboard'; },
         use() {
-          if (schoolPhase() === 'materials' || schoolPhase() === 'coats' || schoolPhase() === 'spades') {
-            say([{name:buddy(), text: schoolHint()}]);
+          if (state.flags.teacherLocked) {
+            say([{name:kidName(), text:'Shh. Ms Maple is shut in the cupboard.'}]);
             return;
           }
-          openStoryPeek();
+          if (state.flags.hamsterOut) {
+            say([{name:kidName(), text:'Ms Maple chased Nibbles inside. The door is still open.'}]);
+            return;
+          }
+          say([{name:kidName(), text:'Just hamster food in the cupboard.'}]);
         },
         draw(g){
           drawDoor(g, 300, 400, 'Cupboard');
-          if (state.flags.teacherLocked) {
-            g.fillStyle = '#9fd4ff';
-            g.fillRect(286, 372, 28, 22);
-            g.strokeStyle = '#3a2a22';
-            g.lineWidth = 2;
-            g.strokeRect(286, 372, 28, 22);
-            g.font = '16px sans-serif';
+          if (state.flags.hamsterOut && !cupboardChase) {
+            g.font = '18px sans-serif';
             g.textAlign = 'center';
-            g.fillText('📖', 300, 388);
+            g.fillText('🐹', 300, 388);
           }
         }
       }),
-      door('to-corr', 480, 452, 'Corridor', 'corridor', 'classroom')
+      prop({
+        id:'broom', x:388, y:428, range:110, sortY:470,
+        spots: [
+          {x:388, y:356}, {x:388, y:400}, {x:388, y:436},
+          {x:312, y:406}, {x:284, y:434}
+        ],
+        prompt(){ return state.flags.teacherLocked ? 'Wedged' : 'Broom'; },
+        sparkle(){ return !!state.flags.hamsterOut && !state.flags.teacherLocked; },
+        use(){
+          if (state.flags.teacherLocked) {
+            say([{name:kidName(), text:'The broom is stuck under the handle.'}]);
+            return;
+          }
+          if (!state.flags.hamsterOut) {
+            say([{name:kidName(), text:'A broom by the cupboard. We might need it later.'}]);
+            return;
+          }
+          cupboardChase = 0;
+          state.flags.teacherLocked = true;
+          save();
+          say([{name:kidName(), text:'The broom wedges under the handle. Ms Maple is shut in. The corridor is open!'}]);
+        },
+        draw(g){
+          if (state.flags.teacherLocked) drawWedgedBroom(g, 300, 400);
+          else {
+            drawStandingBroom(g, 388, 428);
+            drawLabel(g, 388, 458, 'Broom');
+          }
+        }
+      }),
+      prop({
+        id:'to-corr', x:480, y:452, to:'corridor', spawn:'classroom', range:74,
+        spots: [{x:480, y:436}, {x:480, y:468}, {x:480, y:504}],
+        prompt: () => 'Corridor',
+        use(){
+          if (!state.flags.teacherLocked) {
+            say([{name:'Ms Maple', text:'The lesson is not finished!'}]);
+            return;
+          }
+          enter('corridor', 'classroom');
+        },
+        draw(g){ drawDoor(g, 480, 452, 'Corridor'); }
+      })
     ]
   }));
 
@@ -4596,8 +4610,14 @@ function updateCamera(room) {
   const scale = Math.max(zoom, fit);
   const viewW = cssW / scale;
   const viewH = cssH / scale;
-  let x = state.px - viewW / 2;
-  let y = state.py - viewH * (state.flags.disguised ? 0.62 : 0.42);
+  let focusX = state.px, focusY = state.py;
+  if (room.id === 'classroom' && cupboardChase) {
+    const t = Math.min(1, (performance.now() - cupboardChase) / 2000);
+    focusX = 890 + (320 - 890) * t;
+    focusY = 300 + (400 - 300) * t;
+  }
+  let x = focusX - viewW / 2;
+  let y = focusY - viewH * (state.flags.disguised ? 0.62 : 0.42);
   if (viewW >= room.w) x = (room.w - viewW) / 2;
   else x = clamp(x, 0, room.w - viewW);
   if (viewH >= room.h) y = (room.h - viewH) / 2;
@@ -4688,6 +4708,17 @@ function renderWorld(g) {
   partySprites().forEach(p => sprites.push(p));
   sprites.sort((a, b) => a.y - b.y);
   sprites.forEach(s => s.draw(g));
+  if (state.room === 'classroom' && cupboardChase) {
+    const t = Math.min(1, (performance.now() - cupboardChase) / 2000);
+    const hx = 890 + (306 - 890) * t;
+    const hy = 300 + (392 - 300) * t;
+    g.font = '22px sans-serif';
+    g.textAlign = 'center';
+    g.fillText('🐹', hx, hy);
+    const mt = Math.max(0, (t - 0.15) / 0.85);
+    drawAdult(g, 790 + (330 - 790) * mt, 200 + (400 - 200) * mt, {shirt:'#3aaa6a', pants:'#2c6b4a', hair:'#c9a27a', bun:true, glasses:true});
+    if (t >= 1) cupboardChase = 0;
+  }
   g.font = '800 16px Trebuchet MS, sans-serif';
   g.textAlign = 'center';
   for (const f of floats) {
