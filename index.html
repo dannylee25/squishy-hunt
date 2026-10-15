@@ -3204,23 +3204,34 @@ function buildRooms() {
       desk(50, 100), desk(50, 180), desk(50, 260), desk(50, 350),
       desk(220, 100), desk(220, 180), desk(220, 260),
       blocker('tdesk', 630, 90, 210, 54, '#b87530'),
-      blocker('wtable', 610, 270, 210, 54, '#d7a15a'),
       blocker('shelf', 860, 80, 70, 170, '#8a5a32'),
       prop({
-        id:'pencils', x:730, y:118, range:78,
+        id:'pencils', x:730, y:118, range:78, sortY:146,
         prompt(){ return (!state.items.pencils && !state.items.plan) ? 'Pencils' : null; },
         sparkle(){ return !state.items.pencils && !state.items.plan; },
         use(){ state.items.pencils = true; save(); say([{name:kidName(), text: state.items.paper ? 'Pencils! Paper is ready too. The classroom table can draw the plan.' : 'A whole pot of pencils. Paper is still in the library.'}]); },
         draw(g){
           if (state.items.pencils || state.items.plan) return;
-          roundRect(g, 716, 112, 28, 22, 4); fillStroke(g, '#e23b3b');
-          g.fillStyle = '#ffd23a';
-          g.fillRect(724, 96, 4, 20); g.fillRect(732, 90, 4, 26); g.fillRect(740, 98, 4, 18);
+          roundRect(g, 712, 108, 36, 26, 6); fillStroke(g, '#e23b3b');
+          g.fillStyle = '#ff8a8a';
+          roundRect(g, 716, 108, 28, 7, 3); g.fill();
+          g.strokeStyle = '#3a2a22';
+          g.lineWidth = 2;
+          [[722, 92, 22], [730, 84, 30], [738, 90, 24]].forEach(([px, py, ph]) => {
+            g.fillStyle = '#ffd23a';
+            g.fillRect(px, py, 5, ph);
+            g.strokeRect(px, py, 5, ph);
+          });
         }
       }),
       prop({
-        id:'table', x:715, y:297, range:86,
-        spots: [{x:715, y:252}],
+        id:'table', x:700, y:450, range:120,
+        solid: {x:630, y:380, w:140, h:140},
+        spots: [
+          {x:650, y:400}, {x:700, y:400}, {x:750, y:400},
+          {x:650, y:450}, {x:700, y:450}, {x:750, y:450},
+          {x:650, y:500}, {x:700, y:500}, {x:750, y:500}
+        ],
         prompt(){
           if (state.items.plan) return 'See plan';
           if (state.items.paper && state.items.pencils) return 'Make plan';
@@ -3237,12 +3248,18 @@ function buildRooms() {
           state.items.pencils = false;
           state.items.plan = true;
           state.flags.planRead = true;
-  state.flags.planStep1 = true;
-  state.flags.teacherLocked = true;
-  save();
-  openPlan();
+          state.flags.planStep1 = true;
+          state.flags.teacherLocked = true;
+          save();
+          openPlan();
         },
-        draw(g){ drawLabel(g, 715, 252, 'Plan table'); }
+        draw(g){
+          roundRect(g, 630, 380, 140, 140, 10);
+          fillStroke(g, '#d7a15a');
+          g.fillStyle = '#e7c48a';
+          g.fillRect(642, 392, 116, 16);
+          drawLabel(g, 700, 450, 'Plan table');
+        }
       }),
       squish('pink', 175, 400),
       talker('finn', 400, 210, 'finn', 'Finn', () => schoolLines({
@@ -3306,6 +3323,32 @@ function buildRooms() {
           if (!state.flags.starHamster) drawStar(g, 890, 260, 7, '#ffe14a');
         }
       }),
+      prop({
+        id:'cupdoor', x:300, y:400, range:74,
+        spots: [{x:300, y:384}, {x:300, y:416}, {x:300, y:452}],
+        prompt(){ return state.flags.teacherLocked ? 'Shh' : 'Peek'; },
+        sparkle(){ return !state.flags.teacherLocked; },
+        use() {
+          if (schoolPhase() === 'materials' || schoolPhase() === 'coats' || schoolPhase() === 'spades') {
+            say([{name:buddy(), text: schoolHint()}]);
+            return;
+          }
+          openStoryPeek();
+        },
+        draw(g){
+          drawDoor(g, 300, 400, 'Cupboard');
+          if (state.flags.teacherLocked) {
+            g.fillStyle = '#9fd4ff';
+            g.fillRect(286, 372, 28, 22);
+            g.strokeStyle = '#3a2a22';
+            g.lineWidth = 2;
+            g.strokeRect(286, 372, 28, 22);
+            g.font = '16px sans-serif';
+            g.textAlign = 'center';
+            g.fillText('📖', 300, 388);
+          }
+        }
+      }),
       door('to-corr', 480, 452, 'Corridor', 'corridor', 'classroom')
     ]
   }));
@@ -3332,33 +3375,7 @@ function buildRooms() {
       dig: 'Outside, the sandpit is ready for the tunnel.',
       leave: 'The tunnel is open on the playground. Mind the squishies.'
     }), {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
-    sign('notice', 860, 280, 'Map', () => [schoolHint()], {color:'#fff3b0'}),
-    prop({
-      id:'cupdoor', x:480, y:430, range:74,
-      spots: [{x:480, y:384}, {x:480, y:452}],
-      prompt(){ return state.flags.teacherLocked ? 'Shh' : 'Peek'; },
-      sparkle(){ return !state.flags.teacherLocked; },
-      use() {
-        if (schoolPhase() === 'materials' || schoolPhase() === 'coats' || schoolPhase() === 'spades') {
-          say([{name:buddy(), text: schoolHint()}]);
-          return;
-        }
-        openStoryPeek();
-      },
-      draw(g){
-        drawDoor(g, 480, 430, 'Cupboard');
-        if (state.flags.teacherLocked) {
-          g.fillStyle = '#9fd4ff';
-          g.fillRect(458, 402, 28, 22);
-          g.strokeStyle = '#3a2a22';
-          g.lineWidth = 2;
-          g.strokeRect(458, 402, 28, 22);
-          g.font = '16px sans-serif';
-          g.textAlign = 'center';
-          g.fillText('📖', 472, 418);
-        }
-      }
-    })
+    sign('notice', 860, 280, 'Map', () => [schoolHint()], {color:'#fff3b0'})
   ];
   topDoors.forEach(([id, label, x]) => {
     corrEnts.push(door('to-' + id, x, 112, label, id, 'default'));
@@ -4396,7 +4413,7 @@ function renderWorld(g) {
   const sprites = [];
   for (const e of room.entities) {
     sprites.push({
-      y: e.solid ? e.solid.y + e.solid.h : e.y,
+      y: e.sortY != null ? e.sortY : (e.solid ? e.solid.y + e.solid.h : e.y),
       draw() {
         e.draw(g);
         if (e.sparkle && e.sparkle()) drawStar(g, e.x, e.y - 46, 8, '#fff4b0');
