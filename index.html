@@ -91,6 +91,30 @@
   .pit { background:#f0d59a; height:220px; }
   .mover { position:absolute; font-size:42px; }
   .mem { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .swatch { width:84px; height:64px; margin:6px auto; border:3px solid var(--ink); border-radius:14px; }
+  .shelf-row { display:flex; gap:6px; justify-content:center; min-height:36px; margin:8px 0; flex-wrap:wrap; }
+  .shelf-row i { width:28px; height:36px; border-radius:4px; border:2px solid var(--ink); display:inline-block; }
+  .belt, .river { position:relative; height:140px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; margin:8px 0; touch-action:manipulation; }
+  .belt { background:#fff6e4; }
+  .river { background:#7ec8ea; border-color:#2a6496; }
+  .belt button, .river button { position:absolute; top:28px; width:84px; height:84px; font-size:40px; padding:0; }
+  .wanted { font-size:68px; text-align:center; line-height:1; margin:4px 0; }
+  .rhythm { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .rhythm button { width:96px; height:96px; font-size:40px; }
+  .rhythm button.hot { box-shadow:0 0 0 6px #ffcf33; transform:scale(1.06); }
+  .rhythm button.dim { opacity:.45; }
+  .boards { display:flex; gap:18px; justify-content:center; flex-wrap:wrap; align-items:flex-start; }
+  .board { display:grid; gap:6px; }
+  .board.n4 { grid-template-columns:repeat(2, 72px); }
+  .board.n6 { grid-template-columns:repeat(3, 64px); }
+  .board button { width:100%; height:64px; padding:0; }
+  .pips-row { display:flex; gap:5px; justify-content:center; margin:6px 0; }
+  .pips-row b { width:16px; height:16px; border-radius:50%; border:2px solid var(--ink); display:inline-block; background:#fff; }
+  .hopgrid { display:grid; grid-template-columns:repeat(4, 80px); gap:8px; justify-content:center; }
+  .hopgrid button { width:80px; height:80px; font-size:22px; }
+  .passes { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .passcard { display:flex; gap:2px; padding:8px; border:4px solid var(--ink); border-radius:16px; background:#fff; }
+  .passcard span { width:42px; height:48px; display:flex; align-items:center; justify-content:center; font-size:26px; }
   .mem button { min-height:78px; font-size:34px; }
   .swingbox { height:200px; position:relative; border-bottom:4px solid var(--ink); }
   .chase { position:relative; height:250px; border:3px solid var(--ink); border-radius:16px; overflow:hidden;
@@ -1386,78 +1410,6 @@ function drawPlan(c) {
   g.fillText('by ' + PLAYABLE.map(id => KIDS[id].name).join(', '), w / 2, 480);
 }
 
-function orderGame(opts) {
-  let round = 0, step = 0, locked = false;
-  const status = el('p', {class:'status'}, opts.show ? 'Watch...' : 'Your turn');
-  const row = el('div', {class:'choices'});
-  const btns = {};
-  let timer = 0;
-  opts.buttons.forEach(b => {
-    const n = el('button', {class:'choice'}, b.label);
-    n.style.background = b.bg || '#fff';
-    n.addEventListener('click', () => press(b.id, n));
-    btns[b.id] = n;
-    row.append(n);
-  });
-  function press(id, node) {
-    if (locked) return;
-    const seq = opts.rounds[round];
-    const spec = opts.buttons.find(b => b.id === id);
-    if (spec && spec.freq) tone(spec.freq, .12, 'triangle');
-    if (id !== seq[step]) {
-      sfx('no');
-      node.classList.add('shake');
-      setTimeout(() => node.classList.remove('shake'), 280);
-      step = 0;
-      status.textContent = 'Not quite. Try again!';
-      if (opts.show) playShow();
-      return;
-    }
-    step++;
-    status.textContent = step + ' / ' + seq.length;
-    if (step >= seq.length) {
-      round++;
-      step = 0;
-      if (round >= opts.rounds.length) {
-        locked = true;
-        succeed(row, opts.onWin);
-      } else if (opts.show) {
-        status.textContent = 'Next one!';
-        playShow();
-      } else status.textContent = 'Next!';
-    }
-  }
-  function playShow() {
-    locked = true;
-    const seq = opts.rounds[round];
-    let i = 0;
-    clearInterval(timer);
-    timer = setInterval(() => {
-      Object.values(btns).forEach(b => b.classList.remove('lit'));
-      if (i >= seq.length) {
-        clearInterval(timer);
-        locked = false;
-        status.textContent = 'Your turn!';
-        return;
-      }
-      const id = seq[i];
-      btns[id].classList.add('lit');
-      const spec = opts.buttons.find(b => b.id === id);
-      if (spec && spec.freq) tone(spec.freq, .12, 'triangle');
-      i++;
-    }, 680);
-  }
-  showCard(card => {
-    card.classList.add('wide');
-    card.append(el('h2', {}, opts.title));
-    card.append(el('p', {}, opts.help));
-    card.append(row);
-    card.append(status);
-    addBack(card);
-  });
-  trackMini(() => clearInterval(timer));
-  if (opts.show) playShow();
-}
 function timingGame(opts) {
   let hits = 0, pos = 0, dir = 1, alive = true, last = performance.now();
   const bar = el('div', {class:'tbar'});
@@ -1524,81 +1476,293 @@ function searchGame(opts) {
 }
 
 function openBooks() {
-  orderGame({
-    title: 'Tidy the books',
-    help: 'Tap red, then orange, then yellow, then green.',
-    show: false,
-    buttons: [
-      {id:'r', label:'Red', bg:'#ff6b6b'},
-      {id:'o', label:'Orange', bg:'#ff9a3c'},
-      {id:'y', label:'Yellow', bg:'#ffe14a'},
-      {id:'g', label:'Green', bg:'#7dce6a'}
-    ],
-    rounds: [['r','o','y','g']],
-    onWin: () => {
-      closeModal();
-      if (!state.items.paper && !state.items.plan) {
-        state.items.paper = true;
-        save();
-        say([{name:'Mrs Page', text:'The returns box gives you a sheet of paper. Nicely tidied!'}]);
-      } else say([{name:'Mrs Page', text:'The shelf looks lovely. We already have paper.'}]);
+  const steps = ['#ff6b6b','#ff9a3c','#ffe14a','#7dce6a','#7dce6a','#ffe14a','#ff9a3c','#ff6b6b'];
+  const pool = ['#ff6b6b','#ff9a3c','#ffe14a','#7dce6a','#4aa8ff','#d27bff'];
+  let step = 0, alive = true, timer = 0;
+  const swatch = el('div', {class:'swatch'});
+  const shelf = el('div', {class:'shelf-row'});
+  const pile = el('div', {class:'choices'});
+  const status = el('p', {}, 'The books shuffle. Tap the one that matches the colour.');
+  function showNeed() { swatch.style.background = steps[step]; }
+  function deal() {
+    if (!alive) return;
+    const bag = [steps[step]];
+    const extras = pool.filter(c => c !== steps[step]);
+    while (bag.length < 6) bag.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp;
     }
+    pile.replaceChildren();
+    bag.forEach(color => {
+      const btn = el('button', {class:'choice'});
+      btn.style.background = color;
+      btn.dataset.color = color;
+      listenDown(btn, e => {
+        if (e.cancelable) e.preventDefault();
+        if (!alive) return;
+        if (btn.dataset.color !== steps[step]) {
+          sfx('no');
+          btn.classList.add('shake');
+          status.textContent = 'Not that colour. Look at the square.';
+          return;
+        }
+        sfx('ok');
+        const placed = el('i');
+        placed.style.background = color;
+        shelf.append(placed);
+        step++;
+        if (step >= steps.length) {
+          alive = false;
+          clearInterval(timer);
+          succeed(pile, () => {
+            closeModal();
+            if (!state.items.paper && !state.items.plan) {
+              state.items.paper = true;
+              save();
+              say([{name:'Mrs Page', text:'Up the rainbow and back again. The box gives you paper!'}]);
+            } else say([{name:'Mrs Page', text:'The shelf looks lovely. We already have paper.'}]);
+          });
+          return;
+        }
+        status.textContent = (step === 4 ? 'Now the colours go backwards. ' : '') + (step + 1) + ' / ' + steps.length;
+        showNeed();
+        deal();
+      });
+      pile.append(btn);
+    });
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Tidy the books'));
+    card.append(el('p', {}, 'Match the colour, then keep going when the books jump.'));
+    card.append(swatch);
+    card.append(shelf);
+    card.append(pile);
+    card.append(status);
+    addBack(card);
   });
+  showNeed();
+  deal();
+  timer = setInterval(() => { if (alive) deal(); }, 2600);
+  trackMini(() => { alive = false; clearInterval(timer); });
 }
 function openFoods() {
-  orderGame({
-    title: 'Lunch memory',
-    help: 'Watch the foods glow, then tap them in the same order.',
-    show: true,
-    buttons: [
-      {id:'pizza', label:'🍕', bg:'#fff'},
-      {id:'apple', label:'🍎', bg:'#fff'},
-      {id:'milk', label:'🥛', bg:'#fff'},
-      {id:'carrot', label:'🥕', bg:'#fff'}
-    ],
-    rounds: [['pizza','apple','milk'], ['milk','carrot','pizza','apple']],
-    onWin: () => grantSquishy('purple', 'Lunch Lucy', 'A purple squishy was under the tray!')
+  const foods = [
+    {id:'pizza', label:'🍕'},
+    {id:'apple', label:'🍎'},
+    {id:'milk', label:'🥛'},
+    {id:'carrot', label:'🥕'}
+  ];
+  let got = 0, want = 0, alive = true, last = performance.now();
+  const wantEl = el('div', {class:'wanted'}, foods[0].label);
+  const belt = el('div', {class:'belt'});
+  const status = el('p', {}, 'Tap the food that matches the big picture. 0 / 7');
+  const movers = [0, 1, 2].map(i => {
+    const b = el('button', {class:'choice'}, foods[i].label);
+    b.dataset.id = foods[i].id;
+    b._x = 20 + i * 160;
+    belt.append(b);
+    listenDown(b, e => {
+      if (e.cancelable) e.preventDefault();
+      if (!alive) return;
+      if (b.dataset.id !== foods[want].id) {
+        sfx('no');
+        b.classList.add('shake');
+        status.textContent = 'Not that one. ' + got + ' / 7';
+        return;
+      }
+      got++;
+      sfx('ok');
+      b._x = -110;
+      if (got >= 7) {
+        alive = false;
+        succeed(belt, () => grantSquishy('purple', 'Lunch Lucy', 'You caught every lunch! A purple squishy was under the tray!'));
+        return;
+      }
+      let next = want;
+      while (next === want) next = Math.floor(Math.random() * foods.length);
+      want = next;
+      wantEl.textContent = foods[want].label;
+      b.dataset.id = foods[want].id;
+      b.textContent = foods[want].label;
+      status.textContent = got + ' / 7';
+    });
+    return b;
   });
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const speed = 80 + got * 22;
+    const width = belt.clientWidth || 360;
+    movers.forEach(b => {
+      b._x += speed * dt;
+      if (b._x > width + 8) {
+        b._x = -90;
+        const force = !movers.some(m => m.dataset.id === foods[want].id);
+        const f = force ? foods[want] : foods[Math.floor(Math.random() * foods.length)];
+        b.textContent = f.label;
+        b.dataset.id = f.id;
+      }
+      b.style.left = b._x + 'px';
+    });
+    requestAnimationFrame(loop);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Lunch belt'));
+    card.append(el('p', {}, 'The picture changes. Tap that food as it rides past.'));
+    card.append(wantEl);
+    card.append(belt);
+    card.append(status);
+    addBack(card);
+  });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openBells() {
-  orderGame({
-    title: 'Copy the bells',
-    help: 'Watch the animals, then tap them in the same order. This opens the gold chest.',
-    show: true,
-    buttons: [
-      {id:'cat', label:'🐱', bg:'#ff8a8a', freq:523},
-      {id:'duck', label:'🦆', bg:'#ffe14a', freq:587},
-      {id:'frog', label:'🐸', bg:'#8ee08a', freq:659},
-      {id:'dog', label:'🐶', bg:'#8fd3ff', freq:784}
-    ],
-    rounds: [['cat','duck'], ['cat','frog','dog'], ['duck','dog','cat','frog']],
-    onWin: () => grantSquishy('gold', 'Mr Tune', 'The chest clicks. The rare gold squishy is ours!')
+  const animals = [
+    {label:'🐱', freq:523, bg:'#ff8a8a'},
+    {label:'🦆', freq:587, bg:'#ffe14a'},
+    {label:'🐸', freq:659, bg:'#8ee08a'},
+    {label:'🐶', freq:784, bg:'#8fd3ff'}
+  ];
+  let hits = 0, alive = true, target = -1, decoy = -1, windowMs = 1200, timer = 0;
+  const status = el('p', {}, 'Tap the bright animal. Ignore the dim one. 0 / 8');
+  const buttons = animals.map((a, i) => {
+    const b = el('button', {class:'choice'}, a.label);
+    b.style.background = a.bg;
+    listenDown(b, e => {
+      if (e.cancelable) e.preventDefault();
+      if (!alive || target < 0) return;
+      if (i === target) {
+        hits++;
+        sfx('ok');
+        clearTimeout(timer);
+        if (hits >= 8) {
+          alive = false;
+          succeed(b.parentElement, () => grantSquishy('gold', 'Mr Tune', 'The bells ring true. The rare gold squishy is ours!'));
+          return;
+        }
+        windowMs = Math.max(560, windowMs - 70);
+        status.textContent = hits + ' / 8';
+        timer = setTimeout(light, 280);
+      } else {
+        sfx('no');
+        b.classList.add('shake');
+        status.textContent = (i === decoy ? 'That one was only dim. ' : 'Not that animal. ') + hits + ' / 8';
+      }
+    });
+    return b;
   });
+  function light() {
+    if (!alive) return;
+    target = Math.floor(Math.random() * animals.length);
+    decoy = hits >= 3 ? (target + 1 + Math.floor(Math.random() * 3)) % animals.length : -1;
+    buttons.forEach((b, i) => {
+      b.classList.remove('hot', 'dim', 'shake');
+      if (i === target) b.classList.add('hot');
+      else if (i === decoy) b.classList.add('dim');
+    });
+    tone(animals[target].freq, .12, 'triangle');
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (!alive) return;
+      status.textContent = 'Too slow. Keep watching. ' + hits + ' / 8';
+      light();
+    }, windowMs);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Animal bells'));
+    card.append(el('p', {}, 'Tap the one that shines. A dim animal is a trick, and it gets faster.'));
+    const row = el('div', {class:'rhythm'});
+    buttons.forEach(b => row.append(b));
+    card.append(row);
+    card.append(status);
+    addBack(card);
+  });
+  timer = setTimeout(light, 400);
+  trackMini(() => { alive = false; clearTimeout(timer); });
 }
 function openRainbow() {
   const colors = [
-    {id:'r', label:'Red', bg:'#ff5a5a'},
-    {id:'o', label:'Orange', bg:'#ff9a3c'},
-    {id:'y', label:'Yellow', bg:'#ffe14a'},
-    {id:'g', label:'Green', bg:'#67d36a'},
-    {id:'b', label:'Blue', bg:'#4aa8ff'},
-    {id:'p', label:'Purple', bg:'#b07cff'}
+    {id:'r', bg:'#ff5a5a'},
+    {id:'o', bg:'#ff9a3c'},
+    {id:'y', bg:'#ffe14a'},
+    {id:'g', bg:'#67d36a'},
+    {id:'b', bg:'#4aa8ff'},
+    {id:'p', bg:'#b07cff'}
   ];
-  orderGame({
-    title: 'Rainbow bridge',
-    help: 'Tap red, orange, yellow, green, blue, purple.',
-    show: false,
-    buttons: colors,
-    rounds: [['r','o','y','g','b','p']],
-    onWin: () => orderGame({
-      title: 'Backwards rainbow',
-      help: 'Now go backwards. Start at purple.',
-      show: false,
-      buttons: colors,
-      rounds: [['p','b','g','y','o','r']],
-      onWin: () => grantSquishy('rainbow', 'Pip the parrot', 'The rare rainbow squishy bounces onto the bridge!')
-    })
+  const seq = ['r','o','y','g','b','p','p','b','g','y','o','r'];
+  let step = 0, alive = true, last = performance.now();
+  const hint = el('div', {class:'swatch'});
+  const pips = el('div', {class:'pips-row'});
+  seq.forEach(() => pips.append(el('b')));
+  const river = el('div', {class:'river'});
+  const status = el('p', {}, 'Tap the stone that matches the pale colour.');
+  const stones = [0, 1, 2].map(i => {
+    const b = el('button', {class:'choice'}, '');
+    b._x = 30 + i * 150;
+    river.append(b);
+    listenDown(b, e => {
+      if (e.cancelable) e.preventDefault();
+      if (!alive) return;
+      if (b.dataset.id !== seq[step]) {
+        sfx('no');
+        b.classList.add('shake');
+        status.textContent = 'Splash! Wait for the right colour.';
+        return;
+      }
+      sfx('ok');
+      pips.children[step].style.background = colors.find(c => c.id === seq[step]).bg;
+      step++;
+      b._x = -90;
+      if (step >= seq.length) {
+        alive = false;
+        succeed(river, () => grantSquishy('rainbow', 'Pip the parrot', 'Across and back again! The rare rainbow squishy bounces onto the bridge!'));
+        return;
+      }
+      hint.style.background = colors.find(c => c.id === seq[step]).bg;
+      hint.style.opacity = step >= 6 ? '0.45' : '0.85';
+      if (!stones.some(s => s.dataset.id === seq[step])) paintStone(b, seq[step]);
+      status.textContent = step === 6 ? 'Now come back the other way. Faster!' : (step + 1) + ' / ' + seq.length;
+    });
+    return b;
   });
+  function paintStone(b, id) {
+    const c = colors.find(x => x.id === id);
+    b.dataset.id = id;
+    b.style.background = c.bg;
+  }
+  stones.forEach((b, i) => paintStone(b, i === 0 ? seq[0] : colors[(i + 2) % colors.length].id));
+  hint.style.background = colors[0].bg;
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const speed = 70 + step * 10 + (step >= 6 ? 40 : 0);
+    const width = river.clientWidth || 360;
+    stones.forEach(b => {
+      b._x += speed * dt;
+      if (b._x > width + 8) {
+        b._x = -90;
+        const have = stones.some(s => s !== b && s.dataset.id === seq[step]);
+        paintStone(b, have ? colors[Math.floor(Math.random() * colors.length)].id : seq[step]);
+      }
+      b.style.left = b._x + 'px';
+    });
+    requestAnimationFrame(loop);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Rainbow bridge'));
+    card.append(el('p', {}, 'Catch each colour, then catch them coming back. The way back is paler and faster.'));
+    card.append(hint);
+    card.append(pips);
+    card.append(river);
+    card.append(status);
+    addBack(card);
+  });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openBeanbag() {
   timingGame({
@@ -1610,64 +1774,91 @@ function openBeanbag() {
   });
 }
 function openPaint() {
-  const map = {r:'#ff5a5a', y:'#ffe14a', b:'#4aa8ff', w:'#ffffff'};
-  const rounds = [['r','y','b','w'], ['y','b','r','y']];
-  let round = 0, selected = 'r', grid = [null, null, null, null], showing = true;
-  const cells = [0, 1, 2, 3].map(() => el('button', {class:'choice'}, ''));
-  const status = el('p', {}, 'Remember this picture...');
-  function paintCells() {
-    cells.forEach((c, i) => {
-      const id = showing ? rounds[round][i] : grid[i];
-      c.style.background = id ? map[id] : '#ddd';
-      c.textContent = '';
-    });
+  const rounds = [
+    {art:['#ff5a5a','#ffe14a','#4aa8ff','#67d36a'], odd:2, wrong:'#ff9a3c'},
+    {art:['#b07cff','#ff9a3c','#ff9a3c','#4aa8ff'], odd:0, wrong:'#ff5a5a'},
+    {art:['#67d36a','#ffe14a','#4aa8ff','#ff5a5a'], odd:3, wrong:'#ff9a3c'},
+    {art:['#4aa8ff','#67d36a','#ffe14a','#b07cff','#ff5a5a','#ff9a3c'], odd:4, wrong:'#ff7a4a'},
+    {art:['#ffe14a','#fff3a0','#4aa8ff','#67d36a','#ff5a5a','#b07cff'], odd:1, wrong:'#ffe14a'},
+    {art:['#ff5a5a','#ff9a3c','#ffe14a','#67d36a','#4aa8ff','#b07cff'], odd:5, wrong:'#7a5cff'}
+  ];
+  const pots = ['#ff5a5a','#ff9a3c','#ff7a4a','#ffe14a','#fff3a0','#67d36a','#4aa8ff','#b07cff','#7a5cff'];
+  let round = 0, phase = 'find', alive = true;
+  const hers = el('div', {class:'board n4'});
+  const yours = el('div', {class:'board n4'});
+  const pal = el('div', {class:'choices'});
+  const status = el('p', {}, 'Tap the square on your painting that does not match.');
+  function cell(color) {
+    const b = el('button', {class:'choice'});
+    b.style.background = color;
+    return b;
   }
-  function check() {
-    if (grid.some(v => !v)) return;
-    if (grid.every((v, i) => v === rounds[round][i])) {
-      round++;
-      if (round >= rounds.length) { succeed(status, () => grantSquishy('red', 'Miss Dot', 'The painting wiggles and a red squishy pops out!')); return; }
-      grid = [null, null, null, null];
-      showing = true;
-      status.textContent = 'Yes! Remember the next one...';
-      paintCells();
-      setTimeout(() => { showing = false; status.textContent = 'Now paint it.'; paintCells(); }, 1400);
-    } else {
-      sfx('no');
-      status.textContent = 'Not quite. Look again.';
-      showing = true;
-      grid = [null, null, null, null];
-      paintCells();
-      setTimeout(() => { showing = false; status.textContent = 'Try the painting.'; paintCells(); }, 1400);
-    }
-  }
-  showCard(card => {
-    card.append(el('h2', {}, 'Copy the painting'));
-    card.append(el('p', {}, 'Look at the four colours, then paint the same picture.'));
-    const g = el('div', {class:'grid'});
-    cells.forEach((c, i) => {
-      c.addEventListener('click', () => {
-        if (showing) return;
-        grid[i] = selected;
-        paintCells();
-        check();
+  function draw() {
+    const spec = rounds[round];
+    const wide = spec.art.length > 4;
+    hers.className = 'board ' + (wide ? 'n6' : 'n4');
+    yours.className = 'board ' + (wide ? 'n6' : 'n4');
+    hers.replaceChildren();
+    yours.replaceChildren();
+    spec.art.forEach((color, i) => {
+      hers.append(cell(color));
+      const mine = cell(i === spec.odd ? spec.wrong : color);
+      listenDown(mine, e => {
+        if (e.cancelable) e.preventDefault();
+        if (!alive || phase !== 'find') return;
+        if (i !== spec.odd) {
+          sfx('no');
+          mine.classList.add('shake');
+          status.textContent = 'That square matches. Find the odd one.';
+          return;
+        }
+        sfx('ok');
+        phase = 'fix';
+        mine.style.outline = '4px solid #ffcf33';
+        status.textContent = 'Now tap the colour that fixes it.';
       });
-      g.append(c);
+      yours.append(mine);
     });
-    card.append(g);
-    const pal = el('div', {class:'choices'});
-    Object.keys(map).forEach(id => {
-      const b = el('button', {class:'choice'}, id === 'w' ? 'White' : '');
-      b.style.background = map[id];
-      b.addEventListener('click', () => { selected = id; });
-      pal.append(b);
+  }
+  pots.forEach(color => {
+    const b = el('button', {class:'choice'});
+    b.style.background = color;
+    listenDown(b, e => {
+      if (e.cancelable) e.preventDefault();
+      if (!alive || phase !== 'fix') {
+        if (alive && phase === 'find') status.textContent = 'Find the odd square first.';
+        return;
+      }
+      if (color !== rounds[round].art[rounds[round].odd]) {
+        sfx('no');
+        b.classList.add('shake');
+        status.textContent = 'That is not the matching colour.';
+        return;
+      }
+      sfx('ok');
+      round++;
+      if (round >= rounds.length) {
+        alive = false;
+        succeed(yours, () => grantSquishy('red', 'Miss Dot', 'You fixed every painting! A red squishy pops out!'));
+        return;
+      }
+      phase = 'find';
+      status.textContent = 'Next painting. Find the odd square. ' + (round + 1) + ' / ' + rounds.length;
+      draw();
     });
+    pal.append(b);
+  });
+  showCard(card => {
+    card.append(el('h2', {}, 'Fix the painting'));
+    card.append(el('p', {}, 'Miss Dot’s picture stays on the left. Find the square that is wrong, then tap the colour that fixes it.'));
+    const boards = el('div', {class:'boards'});
+    boards.append(hers, yours);
+    card.append(boards);
     card.append(status);
     card.append(pal);
     addBack(card);
-    paintCells();
-    setTimeout(() => { showing = false; status.textContent = 'Now paint it. Pick a colour, then tap a square.'; paintCells(); }, 1500);
   });
+  draw();
 }
 function openKeySearch() {
   const stuff = [
@@ -1859,13 +2050,73 @@ function openDucks() {
   trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openHop() {
-  orderGame({
-    title: 'Hopscotch',
-    help: 'Hop from 1 to 8.',
-    show: false,
-    buttons: [1,2,3,4,5,6,7,8].map(n => ({id:String(n), label:String(n), bg:'#fff'})),
-    rounds: [['1','2','3','4','5','6','7','8']],
-    onWin: () => { closeModal(); addStar('starHop'); say([{name:buddy(), text:'Hop, hop, hop! A star sticker was on square 8.'}]); }
+  const skips = [4, 7, 2];
+  let round = 0, expect = 1, alive = true;
+  const status = el('p', {}, 'Hop in order. Jump over the stone, then tap the stone.');
+  const buttons = [];
+  function draw() {
+    buttons.forEach(b => {
+      const n = Number(b.dataset.n);
+      b.textContent = n === skips[round] ? '🪨' : String(n);
+      b.style.background = n === skips[round] ? '#d7c4a3' : '#fff';
+    });
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Hopscotch'));
+    card.append(el('p', {}, 'Three hops. Skip the stone, finish the numbers, then pick the stone up.'));
+    const grid = el('div', {class:'hopgrid'});
+    for (let n = 1; n <= 8; n++) {
+      const b = el('button', {class:'choice'}, String(n));
+      b.dataset.n = String(n);
+      listenDown(b, e => {
+        if (e.cancelable) e.preventDefault();
+        if (!alive) return;
+        const num = Number(b.dataset.n);
+        const skip = skips[round];
+        if (expect === 'stone') {
+          if (num !== skip) {
+            sfx('no');
+            status.textContent = 'Tap the stone to finish this hop.';
+            return;
+          }
+          round++;
+          if (round >= skips.length) {
+            alive = false;
+            succeed(grid, () => { closeModal(); addStar('starHop'); say([{name:buddy(), text:'You skipped every stone! A star sticker was under the last one.'}]); });
+            return;
+          }
+          expect = 1;
+          sfx('ok');
+          status.textContent = 'New stone! Hop in order and jump over it.';
+          draw();
+          return;
+        }
+        if (num === skip) {
+          sfx('no');
+          status.textContent = 'Jump over the stone. Come back for it at the end.';
+          return;
+        }
+        if (num !== expect) {
+          sfx('no');
+          expect = 1;
+          status.textContent = 'Start this hop again, from 1.';
+          return;
+        }
+        sfx('ok');
+        expect++;
+        if (expect === skip) expect++;
+        if (expect > 8) {
+          expect = 'stone';
+          status.textContent = 'Now tap the stone!';
+        } else status.textContent = 'Next is ' + expect + '.';
+      });
+      buttons.push(b);
+      grid.append(b);
+    }
+    card.append(grid);
+    card.append(status);
+    addBack(card);
+    draw();
   });
 }
 function openDig() {
@@ -1898,36 +2149,62 @@ function openDig() {
   });
 }
 function openPassport() {
-  const order = ['😊','⭐','🧳','💖'];
-  const choices = ['😊','⭐','🧳','💖','🎈','🐱'];
-  let placed = [];
-  const slots = order.map(() => el('div', {class:'slot'}, ''));
-  const sample = el('div', {class:'slots'});
-  order.forEach(s => sample.append(el('span', {}, s)));
-  const status = el('p', {}, 'Tap the stickers in the same order as the little picture.');
-  function refresh() { slots.forEach((s, i) => { s.textContent = placed[i] || ''; }); }
-  showCard(card => {
-    card.append(el('h2', {}, 'Make a pass'));
-    card.append(el('p', {}, 'Copy the picture.'));
-    card.append(sample);
-    const row = el('div', {class:'slots'});
-    slots.forEach(s => row.append(s));
-    card.append(row);
-    const buttons = el('div', {class:'choices'});
-    choices.forEach(st => {
-      const b = el('button', {class:'choice'}, st);
-      b.addEventListener('click', () => {
-        const i = placed.length;
-        if (st !== order[i]) { sfx('no'); status.textContent = 'Match the picture from the left.'; return; }
-        placed.push(st);
+  const rounds = [
+    {want:['😊','⭐','🧳','💖'], wrong:[['😊','⭐','🧳','🎈'],['🐱','⭐','🧳','💖']]},
+    {want:['✈️','⭐','😊','💖'], wrong:[['✈️','⭐','😊','🎈'],['✈️','🌵','😊','💖'],['🧳','⭐','😊','💖']]},
+    {want:['😊','🧳','⭐','🌵'], wrong:[['😊','🧳','⭐','🌮'],['😊','🧳','💖','🌵']]},
+    {want:['⭐','😊','💖','✈️'], wrong:[['⭐','😊','💖','🌵'],['⭐','😊','🎈','✈️'],['⭐','🧳','💖','✈️']]},
+    {want:['💖','✈️','🌵','⭐'], wrong:[['💖','✈️','🌵','😊'],['💖','✈️','🌮','⭐'],['⭐','✈️','🌵','⭐']]}
+  ];
+  let round = 0, alive = true;
+  const sample = el('div', {class:'passcard'});
+  const row = el('div', {class:'passes'});
+  const status = el('p', {}, 'Only one pass matches. Check every sticker.');
+  function stickerRow(list) {
+    const card = el('button', {class:'passcard'});
+    list.forEach(s => card.append(el('span', {}, s)));
+    return card;
+  }
+  function draw() {
+    const spec = rounds[round];
+    sample.replaceChildren();
+    spec.want.forEach(s => sample.append(el('span', {}, s)));
+    const cards = spec.wrong.map(w => ({stickers:w, ok:false}));
+    cards.splice(Math.floor(Math.random() * (cards.length + 1)), 0, {stickers:spec.want, ok:true});
+    row.replaceChildren();
+    cards.forEach(c => {
+      const card = stickerRow(c.stickers);
+      listenDown(card, e => {
+        if (e.cancelable) e.preventDefault();
+        if (!alive) return;
+        if (!c.ok) {
+          sfx('no');
+          card.classList.add('shake');
+          status.textContent = 'Close! One sticker is different. Look again.';
+          return;
+        }
         sfx('ok');
-        refresh();
-        if (placed.length === 4) succeed(row, () => grantSquishy('teal', 'Agent', 'Your pass is perfect. Here is a teal squishy!'));
+        round++;
+        if (round >= rounds.length) {
+          alive = false;
+          succeed(row, () => grantSquishy('teal', 'Agent', 'You spotted every real pass. Here is a teal squishy!'));
+          return;
+        }
+        status.textContent = 'Next pass. ' + (round + 1) + ' / ' + rounds.length;
+        draw();
       });
-      buttons.append(b);
+      row.append(card);
     });
-    card.append(status); card.append(buttons); addBack(card);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Check the pass'));
+    card.append(el('p', {}, 'The real pass is on top. Tap the card that matches every sticker. The others are almost right.'));
+    card.append(sample);
+    card.append(row);
+    card.append(status);
+    addBack(card);
   });
+  draw();
 }
 function openShelf() {
   const cells = [];
@@ -2529,7 +2806,7 @@ function buildRooms() {
       }),
       squish('yellow', 700, 180),
       talker('page', 250, 300, 'adult', 'Mrs Page', [
-        'Sort the books red, orange, yellow, green and the box will give you paper.',
+        'Books shuffle. Tap the colour on the sign, then the colours come back again.',
         'The yellow squishy likes the right-hand shelf.'
       ], {shirt:'#d98a4a', pants:'#6a4030', hair:'#6b3a22', bun:true}),
       back('library', 'Corridor', 'corridor')
@@ -2584,7 +2861,7 @@ function buildRooms() {
     entities:[
       blocker('counter', 80, 70, 800, 50, '#e7d3b0'),
       station('lunch', 620, 220, 'Lunch game', 'purple', openFoods),
-      talker('lucy', 400, 220, 'adult', 'Lunch Lucy', ['Play my food memory game for a purple squishy.', 'Apples today. Axel may have one.'], {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
+      talker('lucy', 400, 220, 'adult', 'Lunch Lucy', ['Foods ride past. Tap the one that matches the big picture.', 'Apples today. Axel may have one.'], {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
       back('canteen', 'Corridor', 'corridor')
     ]
   }));
@@ -2609,7 +2886,7 @@ function buildRooms() {
       station('easel', 520, 230, 'Paint', 'red', openPaint, (g, x, y) => {
         roundRect(g, x - 28, y - 40, 56, 44, 4); fillStroke(g, '#fff');
       }),
-      talker('dot', 220, 250, 'adult', 'Miss Dot', ['Copy my little painting.', 'A red squishy is drying behind it.'], {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
+      talker('dot', 220, 250, 'adult', 'Miss Dot', ['Find the square that does not match, then fix the colour.', 'A red squishy is drying behind it.'], {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
       back('art', 'Corridor', 'corridor')
     ]
   }));
@@ -2619,7 +2896,7 @@ function buildRooms() {
     spawns:{default:{x:480, y:340}},
     entities:[
       rareChest('goldchest', 560, 240, 'gold', 'Bells', openBells),
-      talker('tune', 240, 250, 'adult', 'Mr Tune', ['Copy my animal bells and the gold chest will open.', 'It gets a little longer each time. You can try again.'], {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
+      talker('tune', 240, 250, 'adult', 'Mr Tune', ['Tap the animal that shines. The dim one is a trick, and it gets faster.', 'The gold chest opens if you keep up.'], {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
       back('music', 'Corridor', 'corridor')
     ]
   }));
@@ -2863,7 +3140,7 @@ function buildRooms() {
     entities:[
       rareChest('rainbowchest', 640, 230, 'rainbow', 'Puzzle', openRainbow),
       talker('pip', 250, 250, 'parrot', 'Pip', [
-        'Build the rainbow bridge in order, then backwards.',
+        'Catch the floating colours, then catch them coming back faster.',
         'The rare rainbow squishy is the prize.'
       ]),
       back('treehouse', 'Pond', 'pond', 'tree')
@@ -2901,7 +3178,7 @@ function buildRooms() {
   }
   land('checkin', 'Check-in', '#e7eef8', [
     station('pass', 560, 220, 'Pass', 'teal', openPassport),
-    talker('agent', 240, 250, 'adult', 'Agent', ['Make your pass match the little picture.', 'Then I can give you a teal squishy.'], {shirt:'#f4f4f4', pants:'#2c3e6b', hair:'#6b3a22'})
+    talker('agent', 240, 250, 'adult', 'Agent', ['One card matches the real pass. The others have a sneaky sticker.', 'Then I can give you a teal squishy.'], {shirt:'#f4f4f4', pants:'#2c3e6b', hair:'#6b3a22'})
   ]);
   land('baggage', 'Baggage belt', '#e7eef8', [
     station('belt', 520, 240, 'Belt', 'rose', openCarousel),
