@@ -684,10 +684,7 @@ function drawCoatPerson(g, x, y, pair, bob, isLeader) {
   g.fillStyle = pair.big;
   roundRect(g, -16, -16, 12, 8, 2); g.fill();
   roundRect(g, 4, -16, 12, 8, 2); g.fill();
-  roundRect(g, -22, -108, 44, 96, 12);
-  fillStroke(g, pair.coat);
-  g.fillStyle = pair.coatDark;
-  roundRect(g, -14, -78, 28, 12, 3); g.fill();
+  drawWornCoat(g, pair.coat, pair.coatDark);
   drawStackFace(g, -72, pair.lowHair, pair.lowStyle);
   drawStackFace(g, -100, pair.topHair, pair.topStyle);
   g.restore();
@@ -900,14 +897,89 @@ function drawMexicoSign(g, x, y, flash) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillText('MEXICO', x, y + 2);
 }
-function drawCoat(g, x, y, color) {
+function drawWornCoat(g, color, dark) {
+  g.beginPath();
+  g.moveTo(-16, -100); g.lineTo(-36, -88); g.lineTo(-30, -30); g.lineTo(-14, -42); g.closePath();
+  fillStroke(g, dark, 2);
+  g.beginPath();
+  g.moveTo(16, -100); g.lineTo(36, -88); g.lineTo(30, -30); g.lineTo(14, -42); g.closePath();
+  fillStroke(g, dark, 2);
+  g.beginPath();
+  g.moveTo(-18, -104);
+  g.lineTo(18, -104);
+  g.lineTo(26, -8);
+  g.quadraticCurveTo(0, 4, -26, -8);
+  g.closePath();
+  fillStroke(g, color, 2);
+  g.fillStyle = dark;
+  g.beginPath();
+  g.moveTo(-16, -104); g.lineTo(0, -74); g.lineTo(-1, -104); g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(16, -104); g.lineTo(0, -74); g.lineTo(1, -104); g.closePath(); g.fill();
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(-14, -104); g.lineTo(0, -76); g.lineTo(14, -104);
+  g.stroke();
+  g.fillStyle = '#f6e2a8';
+  [-56, -40, -24].forEach(by => {
+    g.beginPath(); g.arc(0, by, 2.6, 0, Math.PI * 2); g.fill();
+    g.stroke();
+  });
+  g.strokeStyle = dark;
+  g.lineWidth = 2;
+  g.strokeRect(-16, -22, 10, 8);
+  g.strokeRect(6, -22, 10, 8);
+}
+function drawCoat(g, x, y, color, sc) {
+  sc = sc || 1;
+  const dark = color === '#2c3d78' ? '#1c2858' : '#5c3518';
   g.save();
   g.translate(x, y);
-  roundRect(g, -16, -36, 32, 40, 8);
-  fillStroke(g, color);
-  g.fillStyle = color;
-  roundRect(g, -26, -30, 12, 22, 4); g.fill();
-  roundRect(g, 14, -30, 12, 22, 4); g.fill();
+  g.scale(sc, sc);
+  g.strokeStyle = '#6b4423';
+  g.lineWidth = 3;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.arc(0, -50, 8, Math.PI * 1.15, Math.PI * 1.85);
+  g.moveTo(0, -42); g.lineTo(0, -34);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-12, -34); g.lineTo(-30, -24); g.lineTo(-24, 6); g.lineTo(-8, -4); g.closePath();
+  fillStroke(g, dark, 2);
+  g.beginPath();
+  g.moveTo(12, -34); g.lineTo(30, -24); g.lineTo(24, 6); g.lineTo(8, -4); g.closePath();
+  fillStroke(g, dark, 2);
+  g.beginPath();
+  g.moveTo(-16, -36);
+  g.lineTo(16, -36);
+  g.lineTo(22, 14);
+  g.quadraticCurveTo(0, 22, -22, 14);
+  g.closePath();
+  fillStroke(g, color, 2);
+  g.fillStyle = dark;
+  g.beginPath();
+  g.moveTo(-14, -36); g.lineTo(0, -14); g.lineTo(-2, -36); g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(14, -36); g.lineTo(0, -14); g.lineTo(2, -36); g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(-9, -36); g.lineTo(-11, -46); g.quadraticCurveTo(0, -40, 11, -46); g.lineTo(9, -36);
+  g.closePath();
+  fillStroke(g, dark, 2);
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(-12, -34); g.lineTo(0, -16); g.lineTo(12, -34);
+  g.stroke();
+  g.fillStyle = '#f6e2a8';
+  [-6, 4].forEach(by => {
+    g.beginPath(); g.arc(0, by, 2.3, 0, Math.PI * 2); g.fill();
+    g.stroke();
+  });
+  g.strokeStyle = dark;
+  g.lineWidth = 2;
+  g.strokeRect(-14, 4, 9, 7);
+  g.strokeRect(5, 4, 9, 7);
   g.restore();
 }
 
@@ -1673,10 +1745,8 @@ function drawPlan(c) {
       g.fillText('Do this', p.x + 130, 168);
     }
   });
-  g.fillStyle = '#7a4a28';
-  g.fillRect(90, 200, 34, 78);
-  g.fillStyle = '#2c3d78';
-  g.fillRect(136, 200, 34, 78);
+  drawCoat(g, 104, 236, '#7a4a28', 1.05);
+  drawCoat(g, 168, 236, '#2c3d78', 1.05);
   g.strokeStyle = '#5c3518';
   g.lineWidth = 6;
   g.beginPath();
