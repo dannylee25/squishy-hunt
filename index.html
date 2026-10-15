@@ -59,6 +59,10 @@
   .card p { font-size:18px; line-height:1.4; margin:8px 0; }
   .card .row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:12px 0; }
   .faces { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .offer { display:block; margin:0 auto; background:#fff; border-radius:18px; }
+  button.kidpick { min-width:112px; min-height:156px; padding:6px 6px 8px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:16px; }
+  button.kidpick canvas.face { width:86px; height:92px; }
+  button.kidpick canvas.want { width:64px; height:46px; }
   .char { width:150px; background:#fff; border:3px solid var(--ink); border-radius:18px; padding:6px; text-align:center; }
   .char h3 { margin:0; }
   .char canvas { width:140px; height:150px; }
@@ -2370,20 +2374,175 @@ function openDig() {
 function openPassport() {
   openQuiz('word', () => grantSquishy('teal', 'Agent', 'You spelled it. Here is a teal squishy!'));
 }
+function drawDonut(g, x, y, kind, sc) {
+  sc = sc || 1;
+  g.save();
+  g.translate(x, y);
+  g.scale(sc, sc);
+  g.fillStyle = '#e7b56a';
+  g.beginPath(); g.arc(0, 0, 26, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 3; g.strokeStyle = '#3a2a22'; g.stroke();
+  g.fillStyle = {pink:'#ff7ab0', choc:'#6b3a22', lemon:'#ffe14a', berry:'#fff'}[kind] || '#fff';
+  g.beginPath(); g.arc(0, -2, 20, Math.PI * 1.08, Math.PI * 1.92); g.fill();
+  if (kind === 'lemon') {
+    g.fillStyle = '#ff5a7a';
+    for (let i = 0; i < 5; i++) {
+      const a = -2.1 + i * 0.65;
+      g.beginPath(); g.arc(Math.cos(a) * 12, Math.sin(a) * 8 - 4, 2.1, 0, Math.PI * 2); g.fill();
+    }
+  }
+  if (kind === 'berry') {
+    g.fillStyle = '#e23b3b';
+    g.beginPath(); g.arc(-6, -8, 4, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(7, -5, 3.4, 0, Math.PI * 2); g.fill();
+  }
+  g.fillStyle = '#fffaf0';
+  g.beginPath(); g.arc(0, 2, 8, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = '#3a2a22'; g.lineWidth = 2; g.stroke();
+  g.restore();
+}
+function drawToy(g, x, y, kind, sc) {
+  sc = sc || 1;
+  g.save();
+  g.translate(x, y);
+  g.scale(sc, sc);
+  g.lineWidth = 2;
+  g.strokeStyle = '#3a2a22';
+  if (kind === 'bear') {
+    g.fillStyle = '#c9843a';
+    g.beginPath(); g.arc(-10, -12, 6, 0, Math.PI * 2); g.arc(10, -12, 6, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(0, 0, 12, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#3a2a22';
+    g.beginPath(); g.arc(-4, -1, 1.4, 0, 7); g.arc(4, -1, 1.4, 0, 7); g.fill();
+  } else if (kind === 'ball') {
+    g.fillStyle = '#ff5a7a';
+    g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.beginPath(); g.arc(0, 0, 14, 0.3, 1.3); g.stroke();
+    g.beginPath(); g.moveTo(-8, -5); g.lineTo(8, 6); g.stroke();
+  } else if (kind === 'car') {
+    g.fillStyle = '#3a8bff';
+    roundRect(g, -16, -2, 32, 12, 4); g.fill(); g.stroke();
+    g.fillStyle = '#d7f4ff';
+    roundRect(g, -7, -12, 16, 10, 3); g.fill(); g.stroke();
+    g.fillStyle = '#222';
+    g.beginPath(); g.arc(-8, 10, 4, 0, Math.PI * 2); g.arc(9, 10, 4, 0, Math.PI * 2); g.fill();
+  } else {
+    g.translate(-2, 2);
+    g.fillStyle = '#7dce6a';
+    roundRect(g, -18, -3, 36, 8, 3); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(-2, -3); g.lineTo(8, -16); g.lineTo(10, -3); g.closePath(); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(10, 1); g.lineTo(20, 12); g.lineTo(6, 5); g.closePath(); g.fill(); g.stroke();
+  }
+  g.restore();
+}
+function drawCafeCounter(g, x, y) {
+  roundRect(g, x - 86, y - 6, 156, 40, 8);
+  fillStroke(g, '#c9843a');
+  g.fillStyle = '#e7b56a';
+  g.fillRect(x - 78, y - 2, 140, 8);
+  g.fillStyle = '#fff';
+  g.beginPath(); g.ellipse(x - 36, y + 14, 24, 8, 0, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 2; g.strokeStyle = '#3a2a22'; g.stroke();
+  g.beginPath(); g.ellipse(x + 6, y + 16, 20, 7, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+  drawDonut(g, x - 36, y + 2, 'pink', 0.5);
+  drawDonut(g, x + 6, y + 4, 'choc', 0.42);
+}
+function drawToyDisplay(g, x, y) {
+  roundRect(g, x - 92, y - 8, 156, 44, 8);
+  fillStroke(g, '#fff');
+  g.fillStyle = '#f6e8ff';
+  roundRect(g, x - 84, y - 2, 140, 30, 4); g.fill();
+  drawToy(g, x - 66, y + 10, 'bear', 0.48);
+  drawToy(g, x - 40, y + 10, 'car', 0.42);
+  drawToy(g, x - 16, y + 10, 'ball', 0.42);
+  drawToy(g, x + 6, y + 8, 'plane', 0.38);
+}
+function openMatchKids(opts) {
+  const items = opts.items.slice();
+  const order = items.slice();
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+  }
+  let step = 0;
+  let alive = true;
+  const offer = el('canvas', {class:'offer', width:'160', height:'120'});
+  const row = el('div', {class:'faces'});
+  const status = el('p', {}, opts.help);
+  const host = el('div', {});
+  function paintOffer() {
+    const g = offer.getContext('2d');
+    g.clearRect(0, 0, 160, 120);
+    opts.draw(g, 80, 62, order[step].kind, 1.55);
+  }
+  function renderKids() {
+    row.replaceChildren();
+    items.forEach(item => {
+      const done = order.slice(0, step).some(o => o.kid === item.kid);
+      const b = el('button', {class:'kidpick'});
+      const face = portrait(item.kid, false);
+      face.className = 'face';
+      const want = el('canvas', {class:'want', width:'64', height:'46'});
+      opts.draw(want.getContext('2d'), 32, 24, item.kind, 0.62);
+      b.append(face, want, el('span', {}, KIDS[item.kid].name + (done ? ' ✓' : '')));
+      if (done) b.disabled = true;
+      listenDown(b, e => {
+        if (e && e.cancelable) e.preventDefault();
+        if (!alive || done || b.disabled) return;
+        if (order[step].kid !== item.kid) { sfx('no'); b.classList.add('shake'); return; }
+        sfx('ok');
+        step++;
+        if (step >= order.length) {
+          alive = false;
+          status.textContent = 'All four matched!';
+          succeed(host, opts.onWin);
+        } else {
+          status.textContent = 'Matched ' + step + ' of 4. Who wants this one?';
+          paintOffer();
+          renderKids();
+        }
+      });
+      row.append(b);
+    });
+  }
+  showCard(card => {
+    card.append(el('h2', {}, opts.title));
+    card.append(status);
+    card.append(offer);
+    card.append(row);
+    card.append(host);
+    addBack(card);
+    paintOffer();
+    renderKids();
+  });
+  trackMini(() => { alive = false; });
+}
 function openShelf() {
-  openQuiz('sum', () => grantSquishy('magenta', 'Ava', 'The sum is right! A magenta squishy was in the bottle!'));
+  openMatchKids({
+    title: 'Toy shop',
+    help: 'Look at the toy. Tap the child who wants it.',
+    items: [
+      {kid:'ava', kind:'bear'},
+      {kid:'darcey', kind:'plane'},
+      {kid:'axel', kind:'car'},
+      {kid:'hallie', kind:'ball'}
+    ],
+    draw: drawToy,
+    onWin: () => grantSquishy('magenta', 'Ava', 'Every toy found its child! A magenta squishy was in the till.')
+  });
 }
 function openCups() {
-  const stack = el('div', {});
-  stack.style.minHeight = '40px';
-  timingGame({
-    title: 'Cup tower',
-    help: 'Tap Stack when the stick is in the green. Build 4 cups.',
-    need: 4,
-    noun: 'Stack',
-    extra: stack,
-    onHit(n) { stack.append(el('div', {}, '🥤')); stack.lastChild && (stack.style.fontSize = '28px'); },
-    onWin: () => grantSquishy('peach', 'Hallie', 'The tower stayed up! A peach squishy was under the tray.')
+  openMatchKids({
+    title: 'Donut counter',
+    help: 'Look at the donut. Tap the child who wants that topping.',
+    items: [
+      {kid:'ava', kind:'pink'},
+      {kid:'darcey', kind:'choc'},
+      {kid:'axel', kind:'lemon'},
+      {kid:'hallie', kind:'berry'}
+    ],
+    draw: drawDonut,
+    onWin: () => grantSquishy('peach', 'Hallie', 'All four donuts matched! A peach squishy was under the tray.')
   });
 }
 function openBalls() {
@@ -3559,7 +3718,7 @@ function buildRooms() {
       door('to-duty', 560, 490, 'Shop', 'duty', 'default'),
       door('to-cafe', 700, 490, 'Cafe', 'cafe', 'default'),
       door('to-play', 840, 490, 'Play', 'playzone', 'default'),
-      door('to-family', 900, 400, 'Cards', 'family', 'default'),
+      door('to-family', 900, 400, 'Toilets', 'family', 'default'),
       door('to-spot', 930, 470, 'Planes', 'observation', 'default')
     ]
   }));
@@ -3579,7 +3738,7 @@ function buildRooms() {
     shopEnts.push(door('to-' + id, x, y, label, id, 'default'));
     shopSpawns[id] = {x, y: y + 90};
   });
-  shopEnts.push(door('to-family', 200, 400, 'Cards', 'family', 'default'));
+  shopEnts.push(door('to-family', 200, 400, 'Toilets', 'family', 'default'));
   shopEnts.push(door('to-gate', 760, 400, 'Gate', 'gate', 'default'));
   shopSpawns.family = {x:200, y:320};
   shopSpawns.gate = {x:700, y:320};
@@ -3594,12 +3753,12 @@ function buildRooms() {
     }));
   }
   shop('duty', 'Duty free', '#f8e8ff', [
-    station('shelf', 560, 220, 'Bottles', 'magenta', openShelf),
-    talker('clerk', 220, 250, 'adult', 'Clerk', ['One bottle has a gold star. A magenta squishy is inside it.'], {shirt:'#c9b6ff', pants:'#333', hair:'#222'})
+    station('shelf', 560, 250, 'Toys', 'magenta', openShelf, drawToyDisplay),
+    talker('clerk', 220, 250, 'adult', 'Clerk', ['Each child wants one toy from the display.', 'Tap the child who wants the toy you can see.'], {shirt:'#c9b6ff', pants:'#333', hair:'#222'})
   ]);
   shop('cafe', 'Cafe', '#fff0dd', [
-    station('cups', 560, 230, 'Cups', 'peach', openCups),
-    talker('barista', 220, 250, 'adult', 'Barista', ['Stack four cups when the stick is in the green.'], {shirt:'#fff', pants:'#6b3a22', hair:'#333', apron:'#6b3a22'})
+    station('cups', 560, 230, 'Counter', 'peach', openCups, drawCafeCounter),
+    talker('barista', 220, 250, 'adult', 'Barista', ['Each child wants one donut topping.', 'Tap the child who wants the donut on the counter.'], {shirt:'#fff', pants:'#6b3a22', hair:'#333', apron:'#6b3a22'})
   ]);
   shop('playzone', 'Play zone', '#fff6d8', [
     station('pit', 540, 240, 'Balls', 'navy', openBalls),
@@ -3616,9 +3775,9 @@ function buildRooms() {
     }),
     talker('spotter', 180, 280, 'adult', 'Spotter', ['Tap the bright green plane for a lime squishy.', 'You can wave as well.'], {shirt:'#2f6fed', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'})
   ]);
-  shop('family', 'Family room', '#e7ffe8', [
-    rareChest('emchest', 580, 230, 'emerald', 'Cards', openMemory),
-    talker('auntie', 220, 260, 'adult', 'Auntie', ['Match the pairs to win the rare emerald squishy.', 'Take your time. The cards will wait.'], {shirt:'#ffb6d5', pants:'#555', hair:'#6b3a22', bun:true})
+  shop('family', 'Toilets', '#e7ffe8', [
+    rareChest('emchest', 580, 230, 'emerald', 'Match', openMemory),
+    talker('auntie', 220, 260, 'adult', 'Cleaner', ['I am the cleaner. Match the pairs to win the rare emerald squishy.', 'Take your time. The cards will wait.'], {shirt:'#d7f4ff', pants:'#2c4a8a', hair:'#6b3a22', bun:true})
   ]);
   add(R('gate', 'Gate 4', {
     floor:'#d5e4f5', level:3,
