@@ -64,7 +64,6 @@
   .faces { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   .char { width:150px; background:#fff; border:3px solid var(--ink); border-radius:18px; padding:6px; text-align:center; }
   .char h3 { margin:0; }
-  .char p { font-size:13px; margin:4px 0; }
   .char canvas { width:140px; height:150px; }
   .card > button, .card .primary { background:var(--yellow); min-height:52px; padding:8px 16px; font-size:18px; margin:6px; }
   .ghost { background:#fff !important; }
@@ -1224,7 +1223,6 @@ function openSelect() {
       const box = el('button', {class:'char'});
       box.append(portrait(id, true));
       box.append(el('h3', {}, KIDS[id].name));
-      box.append(el('p', {}, 'Age ' + KIDS[id].age));
       box.addEventListener('click', () => begin(id));
       faces.append(box);
     });
