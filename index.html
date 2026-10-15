@@ -99,6 +99,13 @@
   .slide-kid { position:absolute; z-index:3; font-size:46px; line-height:1; width:48px; margin-left:-24px; margin-top:-42px; text-align:center; pointer-events:none; transform-origin:50% 100%; transform:rotate(16deg); }
   .slide-prize { position:absolute; z-index:2; width:54px; height:48px; margin-left:-27px; margin-top:-44px; border-radius:50%; border:3px solid var(--ink); pointer-events:none; box-shadow:0 0 0 4px rgba(255,207,51,.9); }
   .card > button.slide-grab { min-width:220px; min-height:84px; font-size:32px; padding:12px 28px; background:var(--yellow); }
+  .wheel-box { position:relative; width:260px; height:260px; margin:8px auto 4px; }
+  .wheel { position:absolute; left:20px; top:24px; width:220px; height:220px; border-radius:50%; border:4px solid var(--ink);
+    background:conic-gradient(#8fd3ff 0 72deg, #ff7a7a 72deg 144deg, #ffe14a 144deg 216deg, #8ee08a 216deg 288deg, #c9b6ff 288deg 360deg); }
+  .wheel::after { content:''; position:absolute; left:50%; top:50%; width:42px; height:42px; margin:-21px 0 0 -21px; border-radius:50%; background:#fff; border:3px solid var(--ink); }
+  .wheel-star { position:absolute; left:50%; top:50%; margin:-16px 0 0 -14px; font-size:32px; line-height:1; color:#1d3358; transform:rotate(36deg) translateY(-72px); }
+  .wheel-pointer { position:absolute; left:50%; top:0; z-index:2; width:0; height:0; margin-left:-14px;
+    border-left:14px solid transparent; border-right:14px solid transparent; border-top:26px solid var(--ink); }
   .mover { position:absolute; font-size:42px; }
   .mem { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .swatch { width:84px; height:64px; margin:6px auto; border:3px solid var(--ink); border-radius:14px; }
@@ -2233,26 +2240,54 @@ function openSeesaw() {
   openQuiz('sum', () => grantSquishy('lemon', 'Axel', 'The sum is right! The lemon squishy bounced into my hands!'));
 }
 function openRoundabout() {
-  timingGame({
-    title: 'Roundabout',
-    help: 'Tap Spin when the stick is on the green. Get 4 spins in.',
-    need: 4,
-    noun: 'Spin',
-    onWin: () => grantSquishy('sky', 'Hallie', 'The sky squishy flew off and I caught it!')
+  const segments = 5;
+  const target = 0;
+  let ang = 0.5, alive = true, last = performance.now();
+  const wheel = el('div', {class:'wheel'});
+  wheel.append(el('span', {class:'wheel-star'}, '★'));
+  const box = el('div', {class:'wheel-box'});
+  box.append(el('div', {class:'wheel-pointer'}), wheel);
+  const status = el('p', {}, 'Wait until the star is under the arrow.');
+  const btn = el('button', {class:'slide-grab'}, 'Stop!');
+  function segmentAtPointer() {
+    const turn = ((ang % 1) + 1) % 1;
+    return Math.floor(((1 - turn) % 1) * segments) % segments;
+  }
+  function stop(e) {
+    if (e && e.cancelable) e.preventDefault();
+    if (!alive) return;
+    if (segmentAtPointer() === target) {
+      alive = false;
+      sfx('ok');
+      status.textContent = 'The star!';
+      succeed(box, () => grantSquishy('sky', 'Hallie', 'The sky squishy flew off and I caught it!'));
+      return;
+    }
+    sfx('no');
+    status.textContent = 'Not the star. Let it spin and tap Stop again.';
+  }
+  listenDown(btn, stop);
+  function loop(now) {
+    if (!alive) return;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    ang += dt * 0.38;
+    wheel.style.transform = 'rotate(' + (ang * 360) + 'deg)';
+    requestAnimationFrame(loop);
+  }
+  showCard(card => {
+    card.append(el('h2', {}, 'Roundabout'));
+    card.append(el('p', {}, 'The wheel keeps spinning. Tap Stop when the star is under the arrow.'));
+    card.append(box);
+    card.append(status);
+    card.append(btn);
+    addBack(card);
   });
+  const raf = requestAnimationFrame(loop);
+  trackMini(() => { alive = false; cancelAnimationFrame(raf); });
 }
 function openSlide(kind) {
-  if (kind === 'coral') {
-    timingGame({
-      title: 'Park slide',
-      help: 'Tap Slide when the stick is on the green. Get 4 slides in.',
-      need: 4,
-      noun: 'Slide!',
-      onWin: () => grantSquishy('coral', kidName(), 'You grabbed the coral squishy on the way down!')
-    });
-    return;
-  }
-  const coral = false;
+  const coral = kind === 'coral';
   const color = coral ? '#ff7f6e' : '#4aa8ff';
   const prizeAt = 0.58;
   const span = 0.15;
@@ -3560,7 +3595,7 @@ function buildRooms() {
         g.fillStyle = '#6ec1ff';
         g.fillRect(x + 40, y + 4, 22, 10);
       }, [{x:302, y:145}, {x:418, y:168}]),
-      station('spin', 640, 175, 'Spinner', 'sky', openRoundabout, (g, x, y) => {
+      station('spin', 640, 175, 'Roundabout', 'sky', openRoundabout, (g, x, y) => {
         g.fillStyle = '#ff7a7a';
         g.beginPath(); g.arc(x, y, 36, 0, Math.PI * 2); g.fill();
         g.strokeStyle = '#3a2a22'; g.lineWidth = 4; g.stroke();
@@ -3627,7 +3662,7 @@ function buildRooms() {
         }
       }),
       talker('keeper', 760, 360, 'adult', 'Keeper', [
-        'Swing high for mint. Bounce for lemon. Spin for sky.',
+        'Swing high for mint. Bounce for lemon. The roundabout is for sky.',
         'The duck pond has a lavender squishy and the way to the treehouse.',
         'The airport bus comes when all seven park squishies are together.'
       ], {shirt:'#2f9e55', pants:'#245c38', hair:'#5a3a22', hat:'#d8c07a'}),
