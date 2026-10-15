@@ -1107,10 +1107,88 @@ function talker(id, x, y, who, name, lines, look) {
     }
   });
 }
+function drawDaisy(g, x, y, s) {
+  s = s || 1;
+  g.save();
+  g.lineCap = 'round';
+  g.strokeStyle = '#2f8a3a';
+  g.lineWidth = 4 * s;
+  g.beginPath();
+  g.moveTo(x, y + 8 * s);
+  g.quadraticCurveTo(x + 3 * s, y + 24 * s, x - 1 * s, y + 38 * s);
+  g.stroke();
+  g.fillStyle = '#3cb54a';
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  [[-1, 16, -0.9], [1, 24, 0.8]].forEach(([side, dy, rot]) => {
+    g.beginPath();
+    g.ellipse(x + side * 12 * s, y + dy * s, 12 * s, 5 * s, rot, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+  });
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    g.fillStyle = '#fffef6';
+    g.beginPath();
+    g.ellipse(x + Math.cos(a) * 12 * s, y + Math.sin(a) * 12 * s, 8 * s, 4.5 * s, a, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+  }
+  g.fillStyle = '#ffe14a';
+  g.beginPath();
+  g.arc(x, y, 6.5 * s, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  g.restore();
+}
+function drawGlobe(g, x, y) {
+  const r = 16;
+  g.save();
+  g.lineCap = 'round';
+  g.strokeStyle = '#8a5a32';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(x, y + r - 1);
+  g.lineTo(x, y + r + 8);
+  g.stroke();
+  g.fillStyle = '#c9843a';
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.ellipse(x, y + r + 10, 14, 4.5, 0, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  g.fillStyle = '#7ec8ea';
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+  g.fillStyle = '#5cba6a';
+  g.beginPath();
+  g.ellipse(x - 4, y - 1, 7, 5, -0.5, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.ellipse(x + 6, y + 5, 4.2, 3.2, 0.5, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.ellipse(x, y, 6.5, r - 1, 0, 0, Math.PI * 2);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(x - r + 2, y);
+  g.lineTo(x + r - 2, y);
+  g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.75)';
+  g.beginPath();
+  g.arc(x - 6, y - 6, 3.2, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+}
 function sign(id, x, y, title, text, opt) {
   opt = opt || {};
-  return prop({
-    id, x, y, range:68,
+  const node = {
+    id, x, y, range: opt.range || 68,
     prompt: () => opt.prompt || 'Look',
     sparkle() { return !!(opt.star && !state.flags[opt.star]); },
     use() {
@@ -1125,10 +1203,13 @@ function sign(id, x, y, title, text, opt) {
         roundRect(g, x - 18, y - 26, 36, 32, 4);
         fillStroke(g, opt.color || '#fff');
       }
-      drawLabel(g, x, y + 22, title);
-      if (opt.star && !state.flags[opt.star]) drawStar(g, x, y - 40, 7, '#ffe14a');
+      drawLabel(g, x, opt.labelAt != null ? opt.labelAt : y + 22, title);
+      if (opt.star && !state.flags[opt.star]) drawStar(g, opt.starAt != null ? opt.starAt.x : x, opt.starAt != null ? opt.starAt.y : y - 40, 7, '#ffe14a');
     }
-  });
+  };
+  if (opt.spots) node.spots = opt.spots;
+  if (opt.sortY != null) node.sortY = opt.sortY;
+  return prop(node);
 }
 function squish(id, x, y) {
   return prop({
@@ -3369,7 +3450,13 @@ function buildRooms() {
           drawLabel(g, 790, 200 - 108, 'Ms Maple');
         }
       }),
-      sign('globe', 540, 200, 'Globe', ['You give the globe a spin.', 'Your finger lands on Mexico.'], {color:'#7ec8ea'}),
+      sign('globe', 100, 322, 'Globe', ['You give the globe a spin.', 'Your finger lands on Mexico.'], {
+        range: 110,
+        labelAt: 332,
+        sortY: 324,
+        spots: [{x:100, y:254}, {x:84, y:254}, {x:116, y:254}, {x:100, y:278}, {x:100, y:332}],
+        draw(g, x) { drawGlobe(g, x, 254); }
+      }),
       prop({
         id:'hamster', x:890, y:300, range:74,
         spots: [{x:890, y:260}, {x:890, y:342}],
@@ -3453,13 +3540,12 @@ function buildRooms() {
       draw(g){ roundRect(g, 96, 270, 48, 36, 6); fillStroke(g, '#c9843a'); drawLabel(g, 120, 250, 'Lost box'); }
     }),
       talker('oak', 500, 340, 'adult', 'Mr Oak', () => schoolLines({
-      materials: 'Paper is in the library. Pencils are in the classroom. The notice has a map.',
+      materials: 'Paper is in the library. Pencils are in the classroom.',
       coats: 'Step 1: both coats are in the cloakroom.',
       spades: 'Step 2: the shed key is extra shiny, in the lost-property box.',
       dig: 'Outside, the sandpit is ready for the tunnel.',
       leave: 'The tunnel is open on the playground. Mind the squishies.'
     }), {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
-    sign('notice', 860, 280, 'Map', () => [schoolHint()], {color:'#fff3b0'})
   ];
   topDoors.forEach(([id, label, x]) => {
     corrEnts.push(door('to-' + id, x, 112, label, id, 'default'));
@@ -3661,7 +3747,16 @@ function buildRooms() {
         dig: 'The sandpit is ready. Dig down, across under the playground, and up.',
         leave: 'The hole is open. Crawl through when the squishies are packed.'
       }), {shirt:'#4aa35a', pants:'#3d3428', hair:'#333', cap:'#3d3428'}),
-      sign('flower', 220, 430, 'Flower', 'A star sticker was on the biggest daisy.', {star:'starFlower', color:'#ff8fb3'})
+      sign('flower', 140, 470, 'Flower', 'A star sticker was on the biggest daisy.', {
+        star:'starFlower',
+        starAt:{x:140, y:434},
+        range:96,
+        spots:[{x:140, y:434}, {x:122, y:434}, {x:158, y:434}, {x:104, y:442}, {x:140, y:456}, {x:140, y:492}],
+        draw(g, x, y) {
+          drawDaisy(g, x - 36, y - 28, 0.55);
+          drawDaisy(g, x, y - 36, 1);
+        }
+      })
     ]
   }));
 
