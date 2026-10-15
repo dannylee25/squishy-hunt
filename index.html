@@ -931,6 +931,42 @@ function drawNoKidsSign(g, x, y) {
   g.fillStyle = '#d01212';
   g.fillText('No Kids!', x, y + 1);
 }
+function drawToiletCubicle(g, x, y) {
+  roundRect(g, x - 64, y - 112, 18, 112, 4);
+  fillStroke(g, '#b7c4d4');
+  roundRect(g, x + 46, y - 112, 18, 112, 4);
+  fillStroke(g, '#b7c4d4');
+  roundRect(g, x - 50, y - 104, 100, 96, 2);
+  fillStroke(g, '#e8eef6');
+  roundRect(g, x - 38, y - 88, 38, 24, 3);
+  fillStroke(g, '#ffffff');
+  g.fillStyle = '#ffffff';
+  g.beginPath();
+  g.ellipse(x - 18, y - 38, 20, 14, 0, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  g.stroke();
+  g.fillStyle = '#8fd4f8';
+  g.beginPath();
+  g.ellipse(x - 18, y - 40, 11, 7, 0, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.ellipse(x - 18, y - 46, 16, 8, 0, 0, Math.PI * 2);
+  g.stroke();
+  roundRect(g, x - 4, y - 116, 54, 112, 5);
+  fillStroke(g, '#f7fbff');
+  g.fillStyle = '#8a9aab';
+  roundRect(g, x + 8, y - 64, 8, 20, 2);
+  g.fill();
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  g.stroke();
+  g.fillStyle = '#c5ced8';
+  g.fillRect(x - 68, y - 2, 136, 7);
+}
 function drawChest(g, x, y, open) {
   roundRect(g, x - 24, y - 10, 48, 28, 4);
   fillStroke(g, '#c9862a');
@@ -4383,7 +4419,21 @@ function buildRooms() {
     g.stroke();
   };
   shop('family', 'Toilets', '#e7ffe8', [
-    rareChest('emchest', 580, 230, 'emerald', 'Match', openMemory),
+    prop({
+      id:'emchest', x:600, y:348, range:120,
+      spots: [
+        {x:560, y:270}, {x:620, y:270}, {x:582, y:310},
+        {x:630, y:300}, {x:600, y:340}, {x:600, y:376}
+      ],
+      prompt() { return state.squishies.emerald ? 'Again' : 'Cubicle'; },
+      sparkle() { return !state.squishies.emerald; },
+      use: openMemory,
+      draw(g) {
+        drawToiletCubicle(g, 600, 348);
+        if (!state.squishies.emerald) drawSquishy(g, 636, 246, 'emerald', 0.68);
+        drawLabel(g, 600, 376, 'Cubicle');
+      }
+    }),
     talker('auntie', 220, 260, 'adult', 'Cleaner', ['I am the cleaner. Match the pairs to win the rare emerald squishy.', 'Take your time. The cards will wait.'], {shirt:'#d7f4ff', pants:'#2c4a8a', hair:'#6b3a22', bun:true})
   ]);
   add(R('gate', 'Gate 4', {
