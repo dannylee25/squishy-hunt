@@ -687,6 +687,35 @@ function drawSquishy(g, x, y, id, sc) {
   if (s.rare) drawStar(g, 0, -22, 7, '#fff4b0');
   g.restore();
 }
+function drawHedgeGate(g, x, y) {
+  g.fillStyle = '#1e6b34';
+  roundRect(g, x - 36, y - 42, 18, 62, 6); g.fill();
+  roundRect(g, x + 18, y - 42, 18, 62, 6); g.fill();
+  g.fillStyle = '#49b864';
+  g.fillRect(x - 32, y - 40, 10, 10);
+  g.fillRect(x + 22, y - 40, 10, 10);
+  g.strokeStyle = '#c9843a';
+  g.lineWidth = 5;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(x - 16, y - 24); g.lineTo(x + 16, y - 8);
+  g.moveTo(x - 16, y - 8); g.lineTo(x + 16, y + 8);
+  g.stroke();
+  g.fillStyle = '#6b4423';
+  g.fillRect(x - 38, y + 16, 20, 8);
+  g.fillRect(x + 18, y + 16, 20, 8);
+}
+function hedgeGate(id, x, y, label, to, spawn) {
+  return prop({
+    id, x, y, to, spawn, range: 70,
+    prompt: () => label,
+    use() { enter(to, spawn); },
+    draw(g) {
+      drawHedgeGate(g, x, y);
+      drawLabel(g, x, y - 58, label);
+    }
+  });
+}
 function drawDoor(g, x, y, label) {
   g.fillStyle = '#d8b56a';
   g.fillRect(x - 26, y + 30, 52, 8);
@@ -2702,7 +2731,7 @@ function buildRooms() {
                 addStar('starIce');
                 say([
                   {name:'Ivy', text:flavor + '! A fine choice.'},
-                  {name:'Ivy', text:'Hedge maze tip: go right, then up, for the lilac squishy.'}
+                  {name:'Ivy', text:'The lilac squishy hides in the middle of the hedge maze. Watch out for dead ends.'}
                 ]);
               });
             });
@@ -2787,23 +2816,44 @@ function buildRooms() {
         use(){ addStar('starPicnic'); say([{name:'Hallie', text:'Apples for everyone! There was a star sticker under the blanket.'}]); },
         draw(g){ g.fillStyle = '#e23b3b'; roundRect(g, 460, 430, 80, 28, 6); g.fill(); drawLabel(g, 500, 420, 'Picnic'); }
       }),
-      door('to-maze', 640, 400, 'Maze', 'maze', 'default'),
+      hedgeGate('to-maze', 700, 400, 'Maze', 'maze', 'default'),
+      talker('warden', 800, 400, 'adult', 'Robin', [
+        'I guard the maze gate.',
+        'The lilac squishy is in the very middle. Some paths turn back.'
+      ], {shirt:'#2f8f45', pants:'#245c38', hair:'#5a3a22', hat:'#d8c07a'}),
       door('to-tree', 860, 180, 'Treehouse', 'treehouse', 'default'),
       door('to-lawn', 160, 460, 'Park', 'lawn', 'pond')
     ]
   }));
 
   add(R('maze', 'Hedge maze', {
-    floor:'#69c15f', outdoor:true, nopath:true, level:2,
-    spawns:{default:{x:180, y:430}},
+    floor:'#b6e38a', outdoor:true, level:2,
+    spawns:{default:{x:144, y:420}},
+    paint(g){
+      g.fillStyle = '#b6e38a';
+      g.fillRect(0, 0, 960, 540);
+    },
     hedges:[
-      {x:0, y:230, w:700, h:28},
-      {x:260, y:70, w:720, h:28}
+      {x:48,y:32,w:24,h:118},{x:48,y:150,w:24,h:118},{x:48,y:268,w:24,h:118},{x:48,y:386,w:24,h:118},
+      {x:216,y:32,w:24,h:118},{x:216,y:150,w:24,h:23},{x:216,y:245,w:24,h:23},{x:216,y:268,w:24,h:118},{x:216,y:386,w:24,h:23},{x:216,y:481,w:24,h:23},
+      {x:384,y:32,w:24,h:23},{x:384,y:127,w:24,h:23},{x:384,y:150,w:24,h:23},{x:384,y:245,w:24,h:23},{x:384,y:268,w:24,h:23},{x:384,y:363,w:24,h:23},{x:384,y:386,w:24,h:118},
+      {x:552,y:32,w:24,h:23},{x:552,y:127,w:24,h:23},{x:552,y:150,w:24,h:118},{x:552,y:268,w:24,h:118},{x:552,y:386,w:24,h:23},{x:552,y:481,w:24,h:23},
+      {x:720,y:32,w:24,h:23},{x:720,y:127,w:24,h:23},{x:720,y:150,w:24,h:23},{x:720,y:245,w:24,h:23},{x:720,y:268,w:24,h:118},{x:720,y:386,w:24,h:23},{x:720,y:481,w:24,h:23},
+      {x:888,y:32,w:24,h:118},{x:888,y:150,w:24,h:118},{x:888,y:268,w:24,h:118},{x:888,y:386,w:24,h:118},
+      {x:60,y:20,w:168,h:24},{x:228,y:20,w:168,h:24},{x:396,y:20,w:168,h:24},{x:564,y:20,w:168,h:24},{x:732,y:20,w:168,h:24},
+      {x:60,y:138,w:48,h:24},{x:180,y:138,w:48,h:24},{x:228,y:138,w:48,h:24},{x:348,y:138,w:48,h:24},{x:396,y:138,w:168,h:24},{x:564,y:138,w:48,h:24},{x:684,y:138,w:48,h:24},{x:732,y:138,w:168,h:24},
+      {x:60,y:256,w:48,h:24},{x:180,y:256,w:48,h:24},{x:228,y:256,w:168,h:24},{x:396,y:256,w:168,h:24},{x:564,y:256,w:48,h:24},{x:684,y:256,w:48,h:24},{x:732,y:256,w:48,h:24},{x:852,y:256,w:48,h:24},
+      {x:60,y:374,w:168,h:24},{x:228,y:374,w:48,h:24},{x:348,y:374,w:48,h:24},{x:396,y:374,w:48,h:24},{x:516,y:374,w:48,h:24},{x:564,y:374,w:168,h:24},{x:732,y:374,w:48,h:24},{x:852,y:374,w:48,h:24},
+      {x:60,y:492,w:48,h:24},{x:180,y:492,w:48,h:24},{x:228,y:492,w:168,h:24},{x:396,y:492,w:168,h:24},{x:564,y:492,w:168,h:24},{x:732,y:492,w:168,h:24}
     ],
     entities:[
-      squish('lilac', 830, 160),
-      sign('mhint', 400, 400, 'Sign', 'Go right, then up. The lilac squishy is in the top corner.', {color:'#fff'}),
-      door('mout', 150, 470, 'Pond', 'pond', 'maze')
+      squish('lilac', 480, 209),
+      sign('mhint', 400, 450, 'Sign', 'The lilac squishy is in the middle. If a path stops, turn back.', {color:'#fff'}),
+      talker('robin', 280, 455, 'adult', 'Robin', [
+        'This gate goes back to the pond.',
+        'Keep going until the hedges open in the middle.'
+      ], {shirt:'#2f8f45', pants:'#245c38', hair:'#5a3a22', hat:'#d8c07a'}),
+      hedgeGate('mout', 144, 508, 'Pond', 'pond', 'maze')
     ]
   }));
 
@@ -3359,8 +3409,12 @@ function renderWorld(g) {
   drawRoomBg(g, room);
   if (room.hedges) {
     for (const h of room.hedges) {
-      roundRect(g, h.x, h.y, h.w, h.h, 8);
-      fillStroke(g, '#2f8f45');
+      roundRect(g, h.x, h.y, h.w, h.h, 7);
+      fillStroke(g, '#1e6b34');
+      g.fillStyle = '#49b864';
+      const cap = Math.max(4, Math.min(9, Math.round(Math.min(h.w, h.h) * 0.34)));
+      if (h.w >= h.h) g.fillRect(h.x + 3, h.y + 3, Math.max(0, h.w - 6), cap);
+      else g.fillRect(h.x + 3, h.y + 3, cap, Math.max(0, h.h - 6));
     }
   }
   const sprites = [];
