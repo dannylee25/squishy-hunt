@@ -39,25 +39,17 @@
   }
   #d-who { font-weight:900; color:#b4236a; min-height:1em; }
   #d-text { margin:4px 0 8px; font-size:18px; line-height:1.35; }
-  #bar { display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:8px 10px calc(8px + env(safe-area-inset-bottom)); background:#fff6e4; border-top:4px solid var(--ink); }
+  #bar { display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:6px 10px calc(6px + env(safe-area-inset-bottom)); background:#fff6e4; border-top:4px solid var(--ink); }
   #bar.hidden { display:none; }
-  .dpad { display:grid; grid-template-areas:". u ." "l . r" ". d ."; grid-template-columns:68px 68px 68px; grid-template-rows:68px 68px 68px; gap:4px; }
-  .dpad [data-dir="up"]{grid-area:u} .dpad [data-dir="left"]{grid-area:l} .dpad [data-dir="right"]{grid-area:r} .dpad [data-dir="down"]{grid-area:d}
-  #midbtns { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  #midbtns { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
   button { font-family:inherit; font-weight:800; color:var(--ink); border:3px solid var(--ink); background:#fff; border-radius:16px; cursor:pointer;
     touch-action:manipulation; -webkit-user-select:none; }
   button:active { filter:brightness(.92); }
   button:focus-visible { outline:4px solid #3a8bff; outline-offset:2px; }
-  .dpad button, #midbtns button { width:68px; height:68px; font-size:22px; padding:0; }
-  #midbtns button { font-size:13px; line-height:1.1; }
-  #go { width:104px; height:104px; border-radius:50%; background:var(--yellow); font-size:18px; line-height:1.1; padding:8px;
-    box-shadow:0 4px 0 #c49212; }
-  #go.dim { opacity:.5; }
+  #midbtns button { min-width:88px; height:56px; font-size:16px; padding:6px 12px; }
   @media (pointer: coarse) {
-    .dpad { grid-template-columns:84px 84px 84px; grid-template-rows:84px 84px 84px; }
-    .dpad button, #midbtns button { width:84px; height:84px; }
-    #go { width:120px; height:120px; }
+    #midbtns button { min-width:104px; height:64px; font-size:18px; }
   }
   #modal { position:fixed; inset:0; z-index:30; background:rgba(24,40,70,.4); display:flex; align-items:center; justify-content:center; padding:12px; }
   #modal.hidden { display:none; }
@@ -165,17 +157,13 @@
   .shake { animation:shake .28s; }
   @media (min-width:721px) { #midbtns .ico { display:none; } }
   @media (max-width:720px) {
-    .dpad { grid-template-columns:52px 52px 52px; grid-template-rows:52px 52px 52px; }
-    .dpad button, #midbtns button { width:52px; height:52px; font-size:16px; }
+    #midbtns button { min-width:64px; height:52px; font-size:16px; }
     #midbtns .lbl { display:none; }
-    #go { width:84px; height:84px; font-size:16px; }
     #d-text { font-size:16px; }
     .char { width:46%; }
   }
   @media (max-height:520px) {
-    .dpad { grid-template-columns:48px 48px 48px; grid-template-rows:48px 48px 48px; }
-    .dpad button, #midbtns button { width:48px; height:48px; }
-    #go { width:72px; height:72px; }
+    #midbtns button { height:48px; }
     #hud { top:4px; }
     .pill { font-size:12px; padding:2px 8px; }
   }
@@ -203,19 +191,11 @@
     </div>
   </div>
   <div id="bar">
-    <div class="dpad" id="dpad">
-      <button type="button" data-dir="up" aria-label="Up">▲</button>
-      <button type="button" data-dir="left" aria-label="Left">◀</button>
-      <button type="button" data-dir="right" aria-label="Right">▶</button>
-      <button type="button" data-dir="down" aria-label="Down">▼</button>
-    </div>
     <div id="midbtns">
       <button type="button" id="btn-goals" aria-label="Goals"><span class="lbl">Goals</span><span class="ico">★</span></button>
       <button type="button" id="btn-bag" aria-label="Bag"><span class="lbl">Bag</span><span class="ico">🎒</span></button>
       <button type="button" id="btn-plan" aria-label="Plan"><span class="lbl">Plan</span><span class="ico">🗺️</span></button>
-      <button type="button" id="btn-mute" aria-label="Sound">On</button>
     </div>
-    <button type="button" id="go" aria-label="Do the action">Look</button>
   </div>
 </div>
 <div id="modal" class="hidden"></div>
@@ -293,7 +273,6 @@ let barkTimer = 12;
 let toastTimer = 0;
 let lastFrame = 0;
 const keys = new Set();
-const held = {up:false, down:false, left:false, right:false};
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
@@ -400,7 +379,6 @@ function el(tag, attrs, child) {
 }
 function freezeInput() {
   keys.clear();
-  held.up = held.down = held.left = held.right = false;
   dest = null; destId = null;
 }
 function listenDown(el, fn) {
@@ -1388,8 +1366,8 @@ function openHow() {
     card.append(el('h2', {}, 'How to play'));
     [
       'Choose who walks in front. The other three follow.',
-      'Move with the arrow buttons, the keyboard arrows, or tap the ground.',
-      'Walk up to something and press the big yellow button.',
+      'Tap the ground where you want to go, or use the keyboard arrows.',
+      'Tap a person, a door, or a sparkling thing to use it.',
       'There are three families of squishies. Each has 6 colours and 1 rare.',
       'The rares are gold, rainbow, and emerald. Each one needs a kids puzzle.',
       'After a puzzle, answer a sum or spell a word. Ava and Darcey try bigger ones, like 8 + 6 or MEXICO. Axel and Hallie try smaller ones, like 2 + 2 or CAT.',
@@ -1434,7 +1412,7 @@ function begin(id) {
     save();
     say([
       {name:kidName(), text:'The squishies are still at school. We need a plan, two coats, two spades, and every squishy.'},
-      {name:buddy(), text:'Use the arrow buttons. The yellow button does things. We will follow you.'}
+      {name:buddy(), text:'Tap the ground to walk. Tap a sparkling thing to use it. We will follow you.'}
     ]);
   }, 500);
 }
@@ -3552,7 +3530,7 @@ function buildRooms() {
       talker('guard', 120, 300, 'adult', 'Guard', () => state.flags.securityPassed
         ? ['You are through. The scanner will not take the same coats twice.']
         : state.flags.disguised
-          ? ['Tall coats. Walk up to the scanner and press the yellow button. Once only.']
+          ? ['Tall coats. Tap the scanner. Once only.']
           : ['Hello, small travellers! This scanner is for grown-ups.', 'The photo booth is back in the hall.'],
         {shirt:'#2c4a8a', pants:'#1c2c55', hair:'#222', hat:'#1c2c55', badge:true}),
       prop({
@@ -3817,7 +3795,7 @@ function onGo() {
   if (dialog) { advanceDialog(); return; }
   if (mode !== 'play' || modalOpen) return;
   try { ac(); } catch (e) {}
-  if (!hover) { showToast('Walk up to something, then press the yellow button.'); return; }
+  if (!hover) { showToast('Tap something nearby.'); return; }
   hover.e.use();
 }
 function onTap(e) {
@@ -3840,10 +3818,10 @@ function onTap(e) {
 }
 function axis() {
   let x = 0, y = 0;
-  if (held.left || keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) x -= 1;
-  if (held.right || keys.has('ArrowRight') || keys.has('d') || keys.has('D')) x += 1;
-  if (held.up || keys.has('ArrowUp') || keys.has('w') || keys.has('W')) y -= 1;
-  if (held.down || keys.has('ArrowDown') || keys.has('s') || keys.has('S')) y += 1;
+  if (keys.has('ArrowLeft') || keys.has('a') || keys.has('A')) x -= 1;
+  if (keys.has('ArrowRight') || keys.has('d') || keys.has('D')) x += 1;
+  if (keys.has('ArrowUp') || keys.has('w') || keys.has('W')) y -= 1;
+  if (keys.has('ArrowDown') || keys.has('s') || keys.has('S')) y += 1;
   return {x, y};
 }
 function tryMove(dx, dy) {
@@ -4140,11 +4118,6 @@ function updateHud() {
     document.getElementById('sc-air').innerHTML = 'Airport ' + countSet('air') + '/7 ' + dots('air');
     document.getElementById('sc-star').textContent = 'Stars ' + (state.stars || 0) + '/9';
     document.getElementById('objective').textContent = objective();
-    const go = document.getElementById('go');
-    if (dialog) { go.textContent = 'Next'; go.classList.remove('dim'); }
-    else if (hover) { go.textContent = hover.text; go.classList.remove('dim'); }
-    else { go.textContent = 'Look'; go.classList.add('dim'); }
-    document.getElementById('btn-mute').textContent = state.muted ? 'Off' : 'On';
   }
   bar.classList.toggle('hidden', mode !== 'play' || modalOpen);
 }
@@ -4198,29 +4171,9 @@ function onKeyDown(e) {
 }
 function bind() {
   document.getElementById('d-next').addEventListener('click', advanceDialog);
-  document.getElementById('go').addEventListener('click', onGo);
   document.getElementById('btn-goals').addEventListener('click', () => { if (mode === 'play') openGoals(); });
   document.getElementById('btn-bag').addEventListener('click', () => { if (mode === 'play') openBag(); });
   document.getElementById('btn-plan').addEventListener('click', () => { if (mode === 'play') openPlan(); });
-  document.getElementById('btn-mute').addEventListener('click', () => { if (!state) return; state.muted = !state.muted; save(); });
-  document.querySelectorAll('#dpad button').forEach(btn => {
-    const dir = btn.dataset.dir;
-    btn.dataset.hold = '1';
-    listenDown(btn, e => {
-      if (e.cancelable) e.preventDefault();
-      held[dir] = true;
-      try { if (e.pointerId != null && btn.setPointerCapture) btn.setPointerCapture(e.pointerId); } catch (err) {}
-    });
-    listenUp(btn, () => { held[dir] = false; });
-  });
-  window.addEventListener('pointerup', e => {
-    if (!e.target.closest || !e.target.closest('#dpad')) {
-      held.up = held.down = held.left = held.right = false;
-    }
-  });
-  window.addEventListener('touchend', () => {
-    if (!window.PointerEvent) held.up = held.down = held.left = held.right = false;
-  });
   document.addEventListener('touchmove', e => {
     if (e.target.closest && e.target.closest('#modal .card')) return;
     if (e.cancelable) e.preventDefault();
