@@ -2900,6 +2900,55 @@ function drawFoodCounter(g, x, y) {
   g.moveTo(x + 40, y + 10); g.lineTo(x + 44, y + 5);
   g.stroke();
 }
+function drawPassportBook(g, x, y, cover, tilt) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(tilt || 0);
+  roundRect(g, -15, -20, 30, 38, 3);
+  fillStroke(g, cover);
+  g.strokeStyle = '#e6c15a';
+  g.lineWidth = 1.6;
+  g.beginPath();
+  g.arc(0, -6, 5, 0, Math.PI * 2);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-8, 4);
+  g.lineTo(8, 4);
+  g.moveTo(-6, 8);
+  g.lineTo(6, 8);
+  g.stroke();
+  g.restore();
+}
+function drawPassportDesk(g, x, y) {
+  roundRect(g, x - 90, y - 12, 180, 46, 8);
+  fillStroke(g, '#2c3e6b');
+  g.fillStyle = '#9eb6dc';
+  g.fillRect(x - 82, y - 8, 164, 10);
+  g.strokeStyle = '#d7f4ff';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(x - 76, y - 30);
+  g.lineTo(x + 76, y - 30);
+  g.moveTo(x - 76, y - 30);
+  g.lineTo(x - 76, y - 8);
+  g.moveTo(x + 76, y - 30);
+  g.lineTo(x + 76, y - 8);
+  g.stroke();
+  drawPassportBook(g, x - 46, y + 12, '#1c2858', -0.16);
+  drawPassportBook(g, x - 8, y + 14, '#6D1A2A', 0.1);
+  g.fillStyle = '#e23b3b';
+  g.beginPath();
+  g.arc(x + 42, y + 12, 11, 0, Math.PI * 2);
+  g.fill();
+  g.lineWidth = 2;
+  g.strokeStyle = '#3a2a22';
+  g.stroke();
+  g.strokeStyle = '#fff';
+  g.lineWidth = 1.6;
+  g.beginPath();
+  g.arc(x + 42, y + 12, 6, 0, Math.PI * 2);
+  g.stroke();
+}
 function drawCafeCounter(g, x, y) {
   roundRect(g, x - 86, y - 6, 156, 40, 8);
   fillStroke(g, '#c9843a');
@@ -4105,7 +4154,9 @@ function buildRooms() {
     }));
   }
   land('checkin', 'Check-in', '#e7eef8', [
-    station('pass', 560, 220, 'Pass', 'teal', openPassport),
+    station('pass', 560, 220, 'Passports', 'teal', openPassport, drawPassportDesk, [
+      {x:500, y:232}, {x:560, y:232}, {x:610, y:232}, {x:560, y:198}
+    ]),
     talker('agent', 240, 250, 'adult', 'Agent', ['One card matches the real pass. The others have a sneaky sticker.', 'Then I can give you a teal squishy.'], {shirt:'#f4f4f4', pants:'#2c3e6b', hair:'#6b3a22'})
   ]);
   land('baggage', 'Baggage belt', '#e7eef8', [
