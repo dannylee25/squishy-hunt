@@ -107,6 +107,7 @@
   .wheel-pointer { position:absolute; left:50%; top:0; z-index:2; width:0; height:0; margin-left:-14px;
     border-left:14px solid transparent; border-right:14px solid transparent; border-top:26px solid var(--ink); }
   .mover { position:absolute; font-size:42px; }
+  canvas.spot-plane { position:absolute; width:150px; height:80px; background:transparent; border:0; }
   .mem { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .swatch { width:84px; height:64px; margin:6px auto; border:3px solid var(--ink); border-radius:14px; }
   .shelf-row { display:flex; gap:6px; justify-content:center; min-height:36px; margin:8px 0; flex-wrap:wrap; }
@@ -972,19 +973,20 @@ function drawBus(g, x, y) {
   g.beginPath(); g.arc(-55, -2, 11, 0, Math.PI * 2); g.arc(28, -2, 11, 0, Math.PI * 2); g.fill();
   g.restore();
 }
-function drawPlane(g, x, y) {
+function drawPlane(g, x, y, body) {
+  const paint = body || '#f7f7f7';
   g.save();
   g.translate(x, y);
   roundRect(g, -100, -22, 190, 36, 16);
-  fillStroke(g, '#f7f7f7');
-  g.fillStyle = '#2f6fed';
+  fillStroke(g, paint);
+  g.fillStyle = body ? 'rgba(255,255,255,.9)' : '#2f6fed';
   g.fillRect(-100, -6, 190, 8);
-  g.fillStyle = '#f7f7f7';
+  g.fillStyle = paint;
   g.beginPath(); g.moveTo(70, -22); g.lineTo(120, -64); g.lineTo(100, -22); g.closePath();
   g.fill(); g.strokeStyle = '#3a2a22'; g.lineWidth = 2; g.stroke();
   g.beginPath(); g.moveTo(-20, -4); g.lineTo(-70, 30); g.lineTo(24, 0); g.closePath();
   g.fill(); g.stroke();
-  g.fillStyle = '#9ad7ff';
+  g.fillStyle = body ? '#f4fbff' : '#9ad7ff';
   for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(-70 + i * 20, -12, 4, 0, 7); g.fill(); }
   g.restore();
 }
@@ -3095,32 +3097,61 @@ function openBalls() {
   trackMini(() => { alive = false; clearInterval(timer); });
 }
 function openPlanes() {
+  const colours = [
+    {name:'green', color:'#3cb44a'},
+    {name:'pink', color:'#ff5a9a'},
+    {name:'blue', color:'#1d5ed8'},
+    {name:'yellow', color:'#e2b400'},
+    {name:'orange', color:'#ff9a3c'},
+    {name:'purple', color:'#b07cff'}
+  ];
   let alive = true;
+  let hits = 0;
+  let want = colours[0];
   const sky = el('div', {class:'skybox'});
-  const status = el('p', {}, 'Tap the green plane.');
-  let n = 0;
+  const status = el('p', {}, '');
+  function ask() {
+    status.textContent = 'Tap the ' + want.name + ' plane. ' + hits + ' / 3';
+  }
+  ask();
   const timer = setInterval(() => {
     if (!alive) return;
-    n++;
-    const plane = el('div', {class:'mover'}, '✈️');
-    const lime = n % 4 === 0;
-    plane.style.top = (10 + Math.random() * 110) + 'px';
-    plane.style.left = '-40px';
-    plane.style.transition = 'left 2.2s linear';
-    plane.style.filter = lime ? 'hue-rotate(70deg) saturate(2)' : 'grayscale(.2)';
+    const colour = Math.random() < 0.45 ? want : colours[Math.floor(Math.random() * colours.length)];
+    const plane = el('canvas', {class:'spot-plane', width:'150', height:'80'});
+    const pg = plane.getContext('2d');
+    pg.translate(58, 46);
+    pg.scale(0.52, 0.52);
+    drawPlane(pg, 0, 0, colour.color);
+    plane.style.top = (4 + Math.random() * 90) + 'px';
+    plane.style.left = '-170px';
     listenDown(plane, e => {
       e.stopPropagation();
       if (!alive) return;
-      if (lime) { alive = false; succeed(sky, () => grantSquishy('lime', 'Ava', 'That green plane dropped a lime squishy!')); }
-      else status.textContent = 'That plane is going somewhere else.';
+      if (colour.name !== want.name) {
+        status.textContent = 'That plane is ' + colour.name + '. Tap the ' + want.name + ' plane. ' + hits + ' / 3';
+        return;
+      }
+      hits++;
+      plane.remove();
+      if (hits >= 3) {
+        alive = false;
+        clearInterval(timer);
+        succeed(sky, () => grantSquishy('lime', 'Ava', 'Three right planes! A lime squishy flies in!'));
+        return;
+      }
+      const others = colours.filter(c => c.name !== want.name);
+      want = others[Math.floor(Math.random() * others.length)];
+      ask();
     });
     sky.append(plane);
-    requestAnimationFrame(() => { plane.style.left = '110%'; });
-    setTimeout(() => plane.remove(), 2500);
-  }, 700);
+    void plane.offsetWidth;
+    plane.style.transition = 'left 2.8s linear';
+    plane.style.left = '110%';
+    setTimeout(() => { if (plane.parentNode) plane.remove(); }, 3000);
+  }, 650);
   showCard(card => {
     card.append(el('h2', {}, 'Plane spotting'));
-    card.append(el('p', {}, 'Tap only the bright green plane.'));
+    card.append(el('p', {}, 'Planes of every colour fly past. Tap the colour named below, three times.'));
     card.append(sky); card.append(status); addBack(card);
   });
   trackMini(() => { alive = false; clearInterval(timer); });
@@ -4330,7 +4361,7 @@ function buildRooms() {
     talker('helper', 200, 260, 'adult', 'Helper', ['The navy squishy has a face and it moves. Tap that one.'], {shirt:'#ffe14a', pants:'#333', hair:'#6b3a22'})
   ]);
   shop('observation', 'Window', '#d7f0ff', [
-    station('spot', 420, 240, 'Planes', 'lime', openPlanes),
+    station('spot', 300, 248, 'Planes', 'lime', openPlanes),
     prop({
       id:'wave', x:700, y:250, range:70,
       prompt(){ return 'Wave'; },
@@ -4338,8 +4369,22 @@ function buildRooms() {
       use(){ addStar('starWave'); say([{name:'Axel', text:'I waved at a plane! A star sticker blew in.'}]); },
       draw(g){ drawLabel(g, 700, 230, 'Wave'); }
     }),
-    talker('spotter', 180, 280, 'adult', 'Spotter', ['Tap the bright green plane for a lime squishy.', 'You can wave as well.'], {shirt:'#2f6fed', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'})
+    talker('spotter', 180, 280, 'adult', 'Spotter', ['Planes of every colour fly past. Tap the colour named, three times.', 'You can wave as well.'], {shirt:'#2f6fed', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'})
   ]);
+  rooms.observation.paint = function(g) {
+    roundRect(g, 48, 148, 864, 168, 10);
+    g.fillStyle = '#7ec8ff';
+    g.fill();
+    g.fillStyle = 'rgba(255,255,255,.92)';
+    g.beginPath(); g.ellipse(160, 196, 52, 16, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(250, 214, 32, 12, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(800, 188, 46, 14, 0, 0, Math.PI * 2); g.fill();
+    drawPlane(g, 520, 236);
+    g.strokeStyle = '#8a5a32';
+    g.lineWidth = 8;
+    roundRect(g, 48, 148, 864, 168, 10);
+    g.stroke();
+  };
   shop('family', 'Toilets', '#e7ffe8', [
     rareChest('emchest', 580, 230, 'emerald', 'Match', openMemory),
     talker('auntie', 220, 260, 'adult', 'Cleaner', ['I am the cleaner. Match the pairs to win the rare emerald squishy.', 'Take your time. The cards will wait.'], {shirt:'#d7f4ff', pants:'#2c4a8a', hair:'#6b3a22', bun:true})
@@ -4666,7 +4711,8 @@ function updateCamera(room) {
     focusY = 300 + (400 - 300) * t;
   }
   let x = focusX - viewW / 2;
-  let y = focusY - viewH * (state.flags.disguised ? 0.62 : 0.42);
+  const yBias = state.flags.disguised ? 0.62 : (room.id === 'observation' ? 0.6 : 0.42);
+  let y = focusY - viewH * yBias;
   if (viewW >= room.w) x = (room.w - viewW) / 2;
   else x = clamp(x, 0, room.w - viewW);
   if (viewH >= room.h) y = (room.h - viewH) / 2;
