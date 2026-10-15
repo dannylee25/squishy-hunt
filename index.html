@@ -1843,6 +1843,37 @@ function openPlan() {
     card.append(b);
   });
 }
+function drawSpade(g, x, y, s) {
+  s = s || 1;
+  g.save();
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  const top = y + 28 * s;
+  const h = 48 * s;
+  const w = 28 * s;
+  g.fillStyle = '#7d8b98';
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2.5 * s;
+  g.beginPath();
+  g.rect(x - w / 2, top, w, h);
+  g.fill();
+  g.stroke();
+  g.strokeStyle = '#e7eef3';
+  g.lineWidth = 2 * s;
+  g.beginPath();
+  g.moveTo(x - w / 2 + 5 * s, top + 8 * s);
+  g.lineTo(x - w / 2 + 5 * s, top + h - 6 * s);
+  g.stroke();
+  g.strokeStyle = '#6b4423';
+  g.lineWidth = 5 * s;
+  g.beginPath();
+  g.moveTo(x - 8 * s, y + 4 * s);
+  g.lineTo(x + 8 * s, y + 4 * s);
+  g.moveTo(x, y + 4 * s);
+  g.lineTo(x, top + 8 * s);
+  g.stroke();
+  g.restore();
+}
 function drawPlan(c) {
   const g = c.getContext('2d');
   const w = c.width, h = c.height;
@@ -1896,27 +1927,8 @@ function drawPlan(c) {
   g.moveTo(406, 236); g.lineTo(450, 204); g.lineTo(494, 236); g.closePath(); g.fill();
   g.fillStyle = '#c9a06a';
   g.fillRect(440, 258, 20, 30);
-  function planSpade(x, y) {
-    g.strokeStyle = '#5c3518';
-    g.lineWidth = 7;
-    g.lineCap = 'round';
-    g.beginPath();
-    g.moveTo(x, y + 72); g.lineTo(x, y + 18); g.stroke();
-    g.fillStyle = '#e0b15a';
-    g.beginPath();
-    g.moveTo(x - 16, y + 24);
-    g.quadraticCurveTo(x - 20, y - 4, x, y - 12);
-    g.quadraticCurveTo(x + 20, y - 4, x + 16, y + 24);
-    g.closePath();
-    g.fill();
-    g.strokeStyle = '#3a2a22';
-    g.lineWidth = 2;
-    g.stroke();
-    g.fillStyle = '#5c3518';
-    g.fillRect(x - 4, y + 16, 8, 10);
-  }
-  planSpade(368, 228);
-  planSpade(532, 228);
+  drawSpade(g, 368, 198, 1.05);
+  drawSpade(g, 532, 198, 1.05);
   g.strokeStyle = '#6b4423';
   g.lineWidth = 8;
   g.beginPath();
@@ -2376,8 +2388,18 @@ function openShed() {
     card.append(el('p', {}, 'Tap the spade. We need two of them for the sandpit.'));
     const status = el('p', {}, '');
     const row = el('div', {class:'choices'});
-    [['🧹 Broom', false], ['🪣 Bucket', false], ['⛏️ Spade', true]].forEach(([label, ok]) => {
-      const b = el('button', {class:'choice'}, label);
+    [['🧹 Broom', false], ['🪣 Bucket', false], ['Spade', true]].forEach(([label, ok]) => {
+      const b = el('button', {class:'choice'});
+      if (label === 'Spade') {
+        b.style.cssText = 'display:flex;flex-direction:row;align-items:center;justify-content:center;font-size:28px;gap:6px;';
+        const icon = el('canvas');
+        icon.width = 72;
+        icon.height = 88;
+        icon.style.width = '44px';
+        icon.style.height = '56px';
+        drawSpade(icon.getContext('2d'), 36, 2, 0.82);
+        b.append(icon, 'Spade');
+      } else b.textContent = label;
       b.addEventListener('click', () => {
         if (!ok) { sfx('no'); status.textContent = 'That will not dig a tunnel.'; return; }
         state.items.spades = 2;
