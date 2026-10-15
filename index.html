@@ -238,10 +238,11 @@ const SETS = [{id:'school', name:'School'}, {id:'park', name:'Park'}, {id:'air',
 const PLAYABLE = ['ava','darcey','axel','hallie'];
 const UNIFORM = '#6D1A2A';
 const TROUSERS = '#1a1a1a';
+const CHARCOAL = '#5a6168';
 const SHIRT = '#ffffff';
 const KIDS = {
   ava: {name:'Ava', age:7, scale:1, hair:'#ffd24a', outfit:UNIFORM, shoe:TROUSERS, own:'#ff79b0', ownShoe:'#ff5a7a', style:'pony', band:'#ff5a7a', blurb:'Age 7. Blonde ponytail. Likes making plans.'},
-  darcey: {name:'Darcey', age:7, scaleX:1, scaleY:1.28, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, own:'#8b6cff', ownShoe:'#3a2a6a', style:'plait', band:'#ffd24a', blurb:'Age 7. Taller. Brown plait. Fast on the swings.'},
+  darcey: {name:'Darcey', age:7, scale:1, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, own:'#8b6cff', ownShoe:'#3a2a6a', style:'plait', band:'#ffd24a', blurb:'Age 7. Brown plait. Fast on the swings.'},
   axel: {name:'Axel', age:4, scale:0.78, hair:'#ffe07a', outfit:UNIFORM, shorts:TROUSERS, shoe:TROUSERS, own:'#3aa0ff', ownShorts:'#2f9e55', ownShoe:'#f4f4f4', style:'buzz', blurb:'Age 4. Blond buzz cut. Biscuit expert.'},
   hallie: {name:'Hallie', age:4, scale:0.8, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, own:'#ffe14a', ownShoe:'#ff7ab0', style:'pigtails', blurb:'Age 4. Brown pigtails. Friend of every duck.'},
   finn: {name:'Finn', age:7, scale:0.92, hair:'#e25822', outfit:UNIFORM, shorts:TROUSERS, shoe:TROUSERS, style:'buzz', blurb:''}
@@ -558,44 +559,45 @@ function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader, ownClothes
     roundRect(g, -18, -40, 6, 14, 3); g.fill();
     roundRect(g, 12, -40, 6, 14, 3); g.fill();
   } else {
-  g.fillStyle = TROUSERS;
-  if (boy) {
-    roundRect(g, -8, -30, 7, 24, 2); g.fill();
-    roundRect(g, 1, -30, 7, 24, 2); g.fill();
-  } else {
-    roundRect(g, -7, -18, 5, 12, 2); g.fill();
-    roundRect(g, 2, -18, 5, 12, 2); g.fill();
-  }
-  g.fillStyle = TROUSERS;
-  roundRect(g, -9, -8, 8, 6, 2); g.fill();
-  roundRect(g, 1, -8, 8, 6, 2); g.fill();
-  g.fillStyle = SHIRT;
-  roundRect(g, boy ? -15 : -14, -48, boy ? 30 : 28, boy ? 36 : 34, 4); g.fill();
-  if (boy) {
-    roundRect(g, -12, -36, 24, 12, 4);
-    fillStroke(g, UNIFORM);
+    g.fillStyle = CHARCOAL;
+    if (boy) {
+      roundRect(g, -8, -30, 7, 24, 2); g.fill();
+      roundRect(g, 1, -30, 7, 24, 2); g.fill();
+    }
+    g.fillStyle = TROUSERS;
+    roundRect(g, -9, -8, 8, 6, 2); g.fill();
+    roundRect(g, 1, -8, 8, 6, 2); g.fill();
+    if (boy) {
+      roundRect(g, -15, -42, 30, 26, 6);
+      fillStroke(g, UNIFORM);
+      roundRect(g, -23, -44, 10, 20, 3);
+      fillStroke(g, UNIFORM);
+      roundRect(g, 13, -44, 10, 20, 3);
+      fillStroke(g, UNIFORM);
+      g.fillStyle = SKIN;
+      roundRect(g, -22, -26, 6, 6, 2); g.fill();
+      roundRect(g, 16, -26, 6, 6, 2); g.fill();
+    } else {
+      roundRect(g, -16, -24, 32, 18, 5);
+      fillStroke(g, CHARCOAL);
+      roundRect(g, -23, -44, 11, 24, 3);
+      fillStroke(g, UNIFORM);
+      roundRect(g, 12, -44, 11, 24, 3);
+      fillStroke(g, UNIFORM);
+      roundRect(g, -8, -42, 16, 22, 3);
+      fillStroke(g, CHARCOAL);
+      g.fillStyle = SKIN;
+      roundRect(g, -22, -22, 6, 6, 2); g.fill();
+      roundRect(g, 16, -22, 6, 6, 2); g.fill();
+    }
     g.fillStyle = SHIRT;
     g.beginPath();
-    g.moveTo(-5, -36); g.lineTo(0, -30); g.lineTo(5, -36); g.closePath(); g.fill();
-  } else {
-    roundRect(g, -15, -18, 30, 14, 5);
-    fillStroke(g, TROUSERS);
-    roundRect(g, -6, -34, 12, 16, 3);
-    fillStroke(g, TROUSERS);
-    roundRect(g, -16, -38, 8, 14, 3);
-    fillStroke(g, UNIFORM);
-    roundRect(g, 8, -38, 8, 14, 3);
-    fillStroke(g, UNIFORM);
-  }
-  g.fillStyle = UNIFORM;
-  roundRect(g, boy ? -21 : -22, -40, 7, 12, 3); g.fill();
-  roundRect(g, boy ? 14 : 15, -40, 7, 12, 3); g.fill();
-  g.fillStyle = SHIRT;
-  roundRect(g, boy ? -21 : -22, -30, 7, 6, 1); g.fill();
-  roundRect(g, boy ? 14 : 15, -30, 7, 6, 1); g.fill();
-  g.fillStyle = SKIN;
-  roundRect(g, boy ? -20 : -21, -26, 6, 6, 2); g.fill();
-  roundRect(g, boy ? 14 : 15, -26, 6, 6, 2); g.fill();
+    g.ellipse(-5, -41, 6.2, 4.2, -0.4, 0, Math.PI * 2);
+    g.ellipse(5, -41, 6.2, 4.2, 0.4, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 1.7;
+    g.strokeStyle = '#3a2a22';
+    g.stroke();
   }
   g.fillStyle = SKIN;
   g.beginPath(); g.arc(0, -58, 14, 0, Math.PI * 2); fillStroke(g, SKIN);
