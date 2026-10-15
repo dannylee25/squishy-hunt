@@ -672,7 +672,7 @@ function drawStackFace(g, y, hair, style) {
   g.strokeStyle = '#3a2a22'; g.lineWidth = 1.4;
   g.beginPath(); g.arc(0, y + 4, 3.6, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
 }
-function drawCoatPerson(g, x, y, pair, bob) {
+function drawCoatPerson(g, x, y, pair, bob, isLeader) {
   g.save();
   g.translate(x, y + (bob || 0));
   g.fillStyle = 'rgba(0,0,0,.18)';
@@ -685,12 +685,10 @@ function drawCoatPerson(g, x, y, pair, bob) {
   g.fillStyle = pair.coatDark;
   roundRect(g, -14, -78, 28, 12, 3); g.fill();
   drawStackFace(g, -72, pair.lowHair, pair.lowStyle);
-  g.fillStyle = pair.little;
-  roundRect(g, -20, -118, 10, 6, 2); g.fill();
-  roundRect(g, 10, -118, 10, 6, 2); g.fill();
-  drawStackFace(g, -146, pair.topHair, pair.topStyle);
+  drawStackFace(g, -100, pair.topHair, pair.topStyle);
   g.restore();
-  drawLabel(g, x, y - 174, pair.label);
+  drawLabel(g, x, y - 128, pair.label);
+  if (isLeader) drawStar(g, x + 52, y - 128, 8, '#ffcf33');
 }
 function drawAdult(g, x, y, opt) {
   g.save();
@@ -2740,6 +2738,7 @@ function tryDisguise() {
   openDisguise(() => {
     closeModal();
     state.flags.disguised = true;
+    resetTrail();
     save();
     say([{name:'Darcey', text:'Axel is on Ava. Hallie is on me. The coats hide the wiggle. We look like two grown-ups!'}]);
   });
@@ -3757,8 +3756,9 @@ function partySprites() {
     const fi = Math.max(0, PAIRS.findIndex(p => p.ids.includes(state.leader)));
     const lead = PAIRS[fi];
     const other = PAIRS[1 - fi];
-    list.push({y: state.py, draw(g){ drawCoatPerson(g, state.px - 78, state.py, lead, bob); }});
-    list.push({y: state.py, draw(g){ drawCoatPerson(g, state.px + 78, state.py, other, 0); }});
+    const follow = trailPoint(2);
+    list.push({y: state.py, draw(g){ drawCoatPerson(g, state.px, state.py, lead, bob, true); }});
+    list.push({y: follow.y, draw(g){ drawCoatPerson(g, follow.x, follow.y, other, 0, false); }});
     return list;
   }
   list.push({y: state.py, draw(g){ drawKid(g, state.px, state.py, state.leader, state.facing, bob, 1, true, true); }});
