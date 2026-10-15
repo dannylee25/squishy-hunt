@@ -1,2 +1,1 @@
-# squishy-hunt
-# squishy-hunt
+# Squishy Hunt
