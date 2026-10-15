@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Squishy Escape</title>
+<title>Squishy Hunt</title>
 <style>
   :root { --ink:#3a2a22; --paper:#fffaf0; --yellow:#ffcf33; --sky:#8ecbff; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -152,6 +152,8 @@
   .peek-door.reading { background:#6b3a22; }
   .peek-door.reading .peek-face { opacity:1; top:48px; }
   .card > button.story-go { min-width:240px; min-height:84px; font-size:30px; background:var(--yellow); }
+  .lesson-q { font-size:34px; font-weight:900; text-align:center; letter-spacing:.5px; margin:10px 0 4px; }
+  .card p.lesson-status { text-align:center; font-weight:800; }
   .rope { position:absolute; left:50%; top:0; width:4px; height:120px; background:var(--ink); transform-origin:top center; }
   .seat { position:absolute; left:-18px; top:110px; font-size:40px; }
   #err { display:none; position:fixed; z-index:80; left:0; right:0; bottom:0; background:#ffd6d6; color:#600; padding:8px; white-space:pre-wrap; font-size:12px; }
@@ -450,7 +452,7 @@ function succeed(node, onWin) {
   const token = ++winToken;
   sfx('ok');
   node.append(el('p', {class:'bigwin'}, 'Yes!'));
-  setTimeout(() => { if (token === winToken) onWin(); }, 480);
+  setTimeout(() => { if (token === winToken) askLesson(onWin); }, 480);
 }
 
 function say(lines, onDone) {
@@ -1034,6 +1036,133 @@ function pickup(id) {
   if (extra) lines.push(extra);
   say(lines);
 }
+const LESSONS = {
+  seven: {
+    sums: [
+      {q:'8 + 6 = ?', answer:'14', choices:['12','14','16']},
+      {q:'9 + 7 = ?', answer:'16', choices:['15','16','17']},
+      {q:'8 + 5 = ?', answer:'13', choices:['12','13','15']},
+      {q:'7 + 6 = ?', answer:'13', choices:['11','13','14']},
+      {q:'9 + 8 = ?', answer:'17', choices:['16','17','18']},
+      {q:'10 + 6 = ?', answer:'16', choices:['14','16','18']}
+    ],
+    words: ['MEXICO','SCHOOL','AIRPORT','PLANES','SQUISHY']
+  },
+  five: {
+    sums: [
+      {q:'2 + 2 = ?', answer:'4', choices:['3','4','5']},
+      {q:'1 + 2 = ?', answer:'3', choices:['2','3','4']},
+      {q:'3 + 1 = ?', answer:'4', choices:['3','4','5']},
+      {q:'2 + 1 = ?', answer:'3', choices:['2','3','4']},
+      {q:'1 + 1 = ?', answer:'2', choices:['1','2','3']},
+      {q:'4 + 1 = ?', answer:'5', choices:['4','5','6']}
+    ],
+    words: ['CAT','DOG','SUN','BUS','HAT']
+  }
+};
+let lessonN = 0;
+function lessonBand() {
+  const id = state && state.leader;
+  return (id === 'axel' || id === 'hallie') ? LESSONS.five : LESSONS.seven;
+}
+function scrambleWord(word) {
+  const chars = word.split('');
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = chars[i]; chars[i] = chars[j]; chars[j] = tmp;
+  }
+  if (chars.join('') === word && chars.length > 1) {
+    const tmp = chars[0]; chars[0] = chars[1]; chars[1] = tmp;
+  }
+  return chars;
+}
+function askLesson(onPass) {
+  const band = lessonBand();
+  const n = lessonN++;
+  const wordTurn = n % 2 === 1;
+  const who = state && state.leader ? kidName() : 'Friend';
+  showCard(card => {
+    const token = winToken;
+    let settled = false;
+    function pass() {
+      if (settled || token !== winToken) return;
+      settled = true;
+      onPass();
+    }
+    card.append(el('h2', {}, 'Little puzzle'));
+    if (!wordTurn) {
+      const spec = band.sums[Math.floor(n / 2) % band.sums.length];
+      card.append(el('p', {}, who + ', tap the answer.'));
+      card.append(el('p', {class:'lesson-q'}, spec.q));
+      const status = el('p', {class:'lesson-status'}, 'One of these is right.');
+      const row = el('div', {class:'choices'});
+      const choices = spec.choices.slice();
+      for (let i = choices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = choices[i]; choices[i] = choices[j]; choices[j] = tmp;
+      }
+      choices.forEach(choice => {
+        const b = el('button', {class:'choice'}, choice);
+        listenDown(b, e => {
+          if (e && e.cancelable) e.preventDefault();
+          if (settled) return;
+          if (choice !== spec.answer) {
+            sfx('no');
+            b.classList.add('shake');
+            setTimeout(() => b.classList.remove('shake'), 280);
+            status.textContent = 'Not that one. Count again.';
+            return;
+          }
+          sfx('ok');
+          status.textContent = spec.answer + '!';
+          setTimeout(pass, 350);
+        });
+        row.append(b);
+      });
+      card.append(row);
+      card.append(status);
+      return;
+    }
+    const word = band.words[Math.floor(n / 2) % band.words.length];
+    card.append(el('p', {}, who + ', put the letters in order to spell ' + word + '.'));
+    const slots = el('div', {class:'slots'});
+    const slotEls = word.split('').map(() => {
+      const s = el('div', {class:'slot'}, '');
+      slots.append(s);
+      return s;
+    });
+    const status = el('p', {class:'lesson-status'}, 'Tap the letters in order.');
+    const row = el('div', {class:'choices'});
+    let filled = 0;
+    scrambleWord(word).forEach(ch => {
+      const b = el('button', {class:'choice'}, ch);
+      listenDown(b, e => {
+        if (e && e.cancelable) e.preventDefault();
+        if (settled || b.disabled) return;
+        if (ch !== word[filled]) {
+          sfx('no');
+          b.classList.add('shake');
+          setTimeout(() => b.classList.remove('shake'), 280);
+          status.textContent = 'Not that letter yet.';
+          return;
+        }
+        b.disabled = true;
+        b.style.opacity = '0.35';
+        slotEls[filled].textContent = ch;
+        filled++;
+        sfx('ok');
+        if (filled === word.length) {
+          status.textContent = word + '!';
+          setTimeout(pass, 350);
+        }
+      });
+      row.append(b);
+    });
+    card.append(slots);
+    card.append(row);
+    card.append(status);
+  });
+}
 function grantSquishy(id, name, text) {
   const first = !state.squishies[id];
   closeModal();
@@ -1223,7 +1352,7 @@ function openTitle() {
   mode = 'title';
   const unlocked = Math.max(state ? state.unlocked || 1 : 1, unlockLevel());
   showCard(card => {
-    card.append(el('h1', {}, 'Squishy Escape'));
+    card.append(el('h1', {}, 'Squishy Hunt'));
     card.append(el('p', {}, 'Four friends. Three squishy families. One sandy tunnel, one airport bus, and a plane to Mexico.'));
     const faces = el('div', {class:'faces'});
     PLAYABLE.forEach(id => faces.append(portrait(id, false)));
@@ -1263,6 +1392,7 @@ function openHow() {
       'Walk up to something and press the big yellow button.',
       'There are three families of squishies. Each has 6 colours and 1 rare.',
       'The rares are gold, rainbow, and emerald. Each one needs a kids puzzle.',
+      'After a puzzle, answer a sum or spell a word. Ava and Darcey try bigger ones, like 8 + 6 or MEXICO. Axel and Hallie try smaller ones, like 2 + 2 or CAT.',
       'Paper, pencils, spades and coats go in your bag. Use them at special spots.',
       'Stars are bonus stickers. They are not needed to finish.'
     ].forEach(t => card.append(el('p', {}, t)));
@@ -2601,7 +2731,7 @@ function openDisguise(onWin) {
   });
 }
 function openPiano() {
-  let notes = 0;
+  let notes = 0, done = false;
   const row = el('div', {class:'choices'});
   ['#ff6b6b','#ffe14a','#7dce6a','#4aa8ff'].forEach((bg, i) => {
     const b = el('button', {class:'choice'}, '♪');
@@ -2609,10 +2739,13 @@ function openPiano() {
     b.addEventListener('click', () => {
       tone(523 * Math.pow(2, i / 4), .12, 'sine');
       notes++;
-      if (notes >= 5) {
-        addStar('starPiano');
-        closeModal();
-        say([{name:'Ava', text:'Nice tune! A star sticker slid out of the piano.'}]);
+      if (notes >= 5 && !done) {
+        done = true;
+        askLesson(() => {
+          addStar('starPiano');
+          closeModal();
+          say([{name:'Ava', text:'Nice tune! A star sticker slid out of the piano.'}]);
+        });
       }
     });
     row.append(b);
