@@ -1280,14 +1280,14 @@ function coatsReady() { return !!(state.items.coatMaple && state.items.coatButto
 function spadesReady() { return (state.items.spades || 0) >= 2; }
 function schoolPhase() {
   if (!state || !state.items.plan) return 'materials';
-  if (!coatsReady() || !spadesReady()) return 'gear';
-  if (!state.flags.teacherLocked) return 'teacher';
+  if (!coatsReady()) return 'coats';
+  if (!spadesReady()) return 'spades';
   if (!state.flags.tunnelOpen) return 'dig';
   return 'leave';
 }
 function planFocus() {
   const phase = schoolPhase();
-  if (phase === 'teacher') return 2;
+  if (phase === 'spades') return 2;
   if (phase === 'dig') return 3;
   if (phase === 'leave') return 0;
   return 1;
@@ -1300,14 +1300,11 @@ function schoolHint() {
     if (!state.items.pencils) return 'The paper is ready. Pencils are in the red pot in the classroom.';
     return 'Paper and pencils are in the bag. Draw the plan on the classroom table.';
   }
-  if (phase === 'gear') {
-    if (!coatsReady() && !state.items.key) return 'Step 1: both coats are in the cloakroom. The shed key is in the lost box, and the spades are in the playground shed.';
-    if (!coatsReady() && !spadesReady()) return 'Step 1: the cloakroom still has both coats, and the shed still has the spades.';
-    if (!coatsReady()) return 'Step 1: both grown-up coats are on the cloakroom pegs. One tap takes them both.';
-    if (!state.items.key) return 'Step 1: the coats are packed. The shiny shed key is in the lost-property box.';
-    if (!spadesReady()) return 'Step 1: the key fits the playground shed. Take the two spades.';
+  if (phase === 'coats') return 'Step 1: both grown-up coats are on the cloakroom pegs. One tap takes them both.';
+  if (phase === 'spades') {
+    if (!state.items.key) return 'Step 2: the shiny shed key is in the lost-property box.';
+    return 'Step 2: the key fits the playground shed. Take the two spades.';
   }
-  if (phase === 'teacher') return 'Step 2: play peek-a-book at the cupboard door in the corridor. Ms Maple will stay for a story.';
   if (phase === 'dig') return 'Step 3: dig the tunnel in the playground sandpit. Go down, across, and back up.';
   if (countSet('school') < 7) return 'The tunnel is open. Collect the school squishies (' + countSet('school') + '/7), then crawl through.';
   return 'The tunnel is open. Crawl through to the park!';
@@ -1320,7 +1317,7 @@ function schoolLines(byPhase) {
 function maybeShowPlan() {
   if (!state || !state.items.plan || state.level !== 1 || dialog || modalOpen) return;
   const phase = schoolPhase();
-  const flag = phase === 'teacher' ? 'planStep2' : phase === 'dig' ? 'planStep3' : null;
+  const flag = phase === 'spades' ? 'planStep2' : phase === 'dig' ? 'planStep3' : null;
   if (!flag || state.flags[flag]) return;
   state.flags[flag] = true;
   save();
@@ -1331,7 +1328,6 @@ function digBlockers() {
   if (!state.items.plan) need.push('the plan');
   if (!coatsReady()) need.push('both grown-up coats');
   if (!spadesReady()) need.push('two spades');
-  if (!state.flags.teacherLocked) need.push('story time in the cupboard');
   return need;
 }
 function mexicoReady() {
@@ -1352,9 +1348,8 @@ function objective() {
       return 'Draw the plan on the classroom table';
     }
     if (!coatsReady()) return 'Step 1: get both coats from the cloakroom';
-    if (!state.items.key) return 'Step 1: find the shed key in lost property';
-    if (!spadesReady()) return 'Step 1: take two spades from the playground shed';
-    if (!state.flags.teacherLocked) return 'Step 2: play peek-a-book at the cupboard door';
+    if (!state.items.key) return 'Step 2: find the shed key in lost property';
+    if (!spadesReady()) return 'Step 2: take two spades from the playground shed';
     if (!state.flags.tunnelOpen) return 'Step 3: dig the tunnel in the playground sandpit';
     if (countSet('school') < 7) return 'Collect school squishies ' + countSet('school') + '/7, then crawl through';
     return 'Crawl through the tunnel!';
@@ -1381,7 +1376,7 @@ function goalList() {
       done('Both coats from the cloakroom', state.items.coatButton && state.items.coatMaple),
       done('Shed key', state.items.key),
       done('Two spades', (state.items.spades || 0) >= 2),
-      done('Peek-a-book with Ms Maple', state.flags.teacherLocked),
+      done('Ms Maple stays in the cupboard', state.flags.teacherLocked),
       done('School squishies ' + countSet('school') + '/7', countSet('school') >= 7),
       done('Tunnel', state.flags.tunnelOpen || state.level > 1)
     ];
@@ -1690,8 +1685,8 @@ function openPlan() {
   const focus = planFocus();
   const captions = [
     'Every step is ticked. The tunnel is the way out.',
-    'Step 1 is highlighted. Take both coats and two spades.',
-    'Step 2 is highlighted. Play peek-a-book so Ms Maple stays in the cupboard.',
+    'Step 1 is highlighted. Ms Maple is already in the cupboard. Take both coats from the cloakroom.',
+    'Step 2 is highlighted. Take two spades from the playground shed.',
     'Step 3 is highlighted. Dig the tunnel in the sandpit.'
   ];
   showCard(card => {
@@ -1719,8 +1714,8 @@ function drawPlan(c) {
   g.textAlign = 'center';
   g.fillText('OUR PLAN', w / 2, 70);
   const panels = [
-    {x:40, title:'1. Coats and spades', note:'Cloakroom, then the shed'},
-    {x:320, title:'2. Cupboard', note:'Peek-a-book with Ms Maple'},
+    {x:40, title:'1. Coats', note:'Both coats from the cloakroom'},
+    {x:320, title:'2. Spades', note:'Two spades from the shed'},
     {x:600, title:'3. Dig', note:'Down, across, and up'}
   ];
   panels.forEach((p, i) => {
@@ -1751,22 +1746,34 @@ function drawPlan(c) {
   });
   drawCoat(g, 104, 236, '#7a4a28', 1.05);
   drawCoat(g, 168, 236, '#2c3d78', 1.05);
-  g.strokeStyle = '#5c3518';
-  g.lineWidth = 6;
+  g.fillStyle = '#8a5a32';
+  g.fillRect(418, 236, 64, 52);
+  g.fillStyle = '#6b3a22';
   g.beginPath();
-  g.moveTo(200, 278); g.lineTo(236, 200);
-  g.stroke();
-  g.fillStyle = '#c9843a';
-  g.fillRect(224, 192, 24, 10);
-  [390, 438, 486].forEach((x, i) => {
-    g.fillStyle = i === 1 ? '#c9843a' : '#8a5a32';
-    g.fillRect(x, 200, 36, 90);
+  g.moveTo(406, 236); g.lineTo(450, 204); g.lineTo(494, 236); g.closePath(); g.fill();
+  g.fillStyle = '#c9a06a';
+  g.fillRect(440, 258, 20, 30);
+  function planSpade(x, y) {
+    g.strokeStyle = '#5c3518';
+    g.lineWidth = 7;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(x, y + 72); g.lineTo(x, y + 18); g.stroke();
+    g.fillStyle = '#e0b15a';
+    g.beginPath();
+    g.moveTo(x - 16, y + 24);
+    g.quadraticCurveTo(x - 20, y - 4, x, y - 12);
+    g.quadraticCurveTo(x + 20, y - 4, x + 16, y + 24);
+    g.closePath();
+    g.fill();
     g.strokeStyle = '#3a2a22';
     g.lineWidth = 2;
-    g.strokeRect(x, 200, 36, 90);
-  });
-  g.font = '28px sans-serif';
-  g.fillText('📖', 456, 248);
+    g.stroke();
+    g.fillStyle = '#5c3518';
+    g.fillRect(x - 4, y + 16, 8, 10);
+  }
+  planSpade(368, 228);
+  planSpade(532, 228);
   g.strokeStyle = '#6b4423';
   g.lineWidth = 8;
   g.beginPath();
@@ -1787,12 +1794,12 @@ function drawPlan(c) {
   g.font = '700 22px Comic Sans MS, sans-serif';
   g.fillStyle = '#3a2a22';
   const foot = focus === 2
-    ? 'Next: lock the story in the cupboard.'
+    ? 'Next: two spades from the playground shed.'
     : focus === 3
       ? 'Now: dig under the playground.'
       : focus === 0
         ? 'The way to the park is open.'
-        : 'First: coats from the cloakroom, spades from the shed.';
+        : 'First: both coats from the cloakroom.';
   g.fillText(foot, w / 2, 440);
   g.font = '700 18px Comic Sans MS, sans-serif';
   g.fillText('by ' + PLAYABLE.map(id => KIDS[id].name).join(', '), w / 2, 480);
@@ -2149,7 +2156,7 @@ function openShed() {
         state.items.spades = 2;
         save();
         closeModal();
-        say([{name:buddy(), text:'Two spades! Step 1 is finished once both coats are in the bag as well.'}], () => maybeShowPlan());
+        say([{name:buddy(), text: coatsReady() ? 'Two spades! Step 2 is done. The sandpit is next.' : 'Two spades for the bag. Step 1 is still both coats.'}], () => maybeShowPlan());
       });
       row.append(b);
     });
@@ -3140,17 +3147,18 @@ function buildRooms() {
           state.items.pencils = false;
           state.items.plan = true;
           state.flags.planRead = true;
-          state.flags.planStep1 = true;
-          save();
-          openPlan();
+  state.flags.planStep1 = true;
+  state.flags.teacherLocked = true;
+  save();
+  openPlan();
         },
         draw(g){ drawLabel(g, 715, 252, 'Plan table'); }
       }),
       squish('pink', 175, 400),
       talker('finn', 400, 210, 'finn', 'Finn', () => schoolLines({
         materials: 'I am staying for art club. Mrs Page keeps the paper, and the red pot has pencils.',
-        gear: 'Both coats hang in the cloakroom. The shed outside has the spades.',
-        teacher: 'The cupboard door is in the corridor. Ms Maple likes a story.',
+        coats: 'Step 1: both coats hang in the cloakroom. One tap takes them both.',
+        spades: 'Step 2: the shed key is in the lost box. The spades are in the playground shed.',
         dig: 'The sandpit is just outside. Dig down, then across, then up.',
         leave: 'The pink squishy hides by the desks. Then crawl through the tunnel.'
       })),
@@ -3160,11 +3168,9 @@ function buildRooms() {
         prompt(){ return state.flags.teacherLocked ? null : 'Talk'; },
         use(){ say([
           {name:'Ms Maple', text: schoolHint()},
-          {name:'Ms Maple', text: schoolPhase() === 'teacher'
-            ? 'I will be at the cupboard door. Tap the one I peek from.'
-            : schoolPhase() === 'materials'
-              ? 'The red pot on my desk has the pencils.'
-              : 'Coats and spades come before my story.'}
+          {name:'Ms Maple', text: schoolPhase() === 'materials'
+            ? 'The red pot on my desk has the pencils.'
+            : 'I am already in the cupboard. The plan starts with the coats.'}
         ]); },
         draw(g){
           if (state.flags.teacherLocked) return;
@@ -3188,9 +3194,7 @@ function buildRooms() {
           save();
           say([
             {name:kidName(), text:'The cage opens. Nibbles zooms once around the room, then hops back in for a seed.'},
-            {name:'Ms Maple', text: schoolPhase() === 'teacher'
-              ? 'Good hamster. I am ready for peek-a-book at the cupboard.'
-              : 'Good hamster. ' + schoolHint()}
+            {name:'Ms Maple', text: 'Good hamster. ' + schoolHint()}
           ]);
         },
         draw(g){
@@ -3233,8 +3237,8 @@ function buildRooms() {
     }),
     talker('oak', 500, 270, 'adult', 'Mr Oak', () => schoolLines({
       materials: 'Paper is in the library. Pencils are in the classroom. The notice has a map.',
-      gear: 'The shed key is extra shiny, in the lost-property box. Coats are in the cloakroom.',
-      teacher: 'The cupboard door is along this corridor. Play peek-a-book there.',
+      coats: 'Step 1: both coats are in the cloakroom.',
+      spades: 'Step 2: the shed key is extra shiny, in the lost-property box.',
       dig: 'Outside, the sandpit is ready for the tunnel.',
       leave: 'The tunnel is open on the playground. Mind the squishies.'
     }), {shirt:'#3a6ad8', pants:'#243e86', hair:'#ddd', bald:true}),
@@ -3245,7 +3249,7 @@ function buildRooms() {
       prompt(){ return state.flags.teacherLocked ? 'Shh' : 'Peek'; },
       sparkle(){ return !state.flags.teacherLocked; },
       use() {
-        if (schoolPhase() === 'materials' || schoolPhase() === 'gear') {
+        if (schoolPhase() === 'materials' || schoolPhase() === 'coats' || schoolPhase() === 'spades') {
           say([{name:buddy(), text: schoolHint()}]);
           return;
         }
@@ -3290,8 +3294,8 @@ function buildRooms() {
       squish('yellow', 700, 180),
       talker('page', 250, 300, 'adult', 'Mrs Page', () => schoolLines({
         materials: 'Play the book game on the shelf. The paper is the prize. The yellow squishy likes the right-hand shelf.',
-        gear: 'Step 1 is coats in the cloakroom and spades in the outside shed.',
-        teacher: 'Step 2 is peek-a-book at the corridor cupboard.',
+        coats: 'Step 1 is both coats in the cloakroom.',
+        spades: 'Step 2 is the shed key, then two spades outside.',
         dig: 'Step 3 is the sandpit outside. Dig down, across, and up.',
         leave: 'The yellow squishy likes the right-hand shelf, if you still need it.'
       }), {shirt:'#d98a4a', pants:'#6a4030', hair:'#6b3a22', bun:true}),
@@ -3320,7 +3324,7 @@ function buildRooms() {
           state.items.coatMaple = true;
           state.items.coatButton = true;
           save();
-          say([{name:buddy(), text:"Both coats in one go! Ms Maple's brown coat and Miss Button's blue coat. Axel can stand on Ava, and Hallie on Darcey."}], () => maybeShowPlan());
+          say([{name:buddy(), text:"Both coats in one go! Ms Maple's brown coat and Miss Button's blue coat. Axel can stand on Ava, and Hallie on Darcey. Step 1 is done."}], () => maybeShowPlan());
         },
         draw(g){
           g.strokeStyle = '#6b4423';
@@ -3354,8 +3358,8 @@ function buildRooms() {
       station('lunch', 620, 220, 'Lunch game', 'purple', openFoods),
       talker('lucy', 400, 220, 'adult', 'Lunch Lucy', () => schoolLines({
         materials: 'After the plan, come back. Foods ride past and the purple squishy is the prize.',
-        gear: 'The cloakroom coats and the shed spades come before lunch adventures.',
-        teacher: 'Ms Maple is waiting at the cupboard for peek-a-book.',
+        coats: 'Step 1 is the cloakroom coats. Lunch can wait.',
+        spades: 'Step 2 is the shed spades. Foods can wait.',
         dig: 'The sandpit tunnel is the way out. Apples can wait.',
         leave: 'Foods ride past. Tap the one that matches the big picture.'
       }), {shirt:'#fff', pants:'#555', hair:'#333', apron:'#e45590'}),
@@ -3373,8 +3377,8 @@ function buildRooms() {
       }),
       talker('coach', 700, 240, 'adult', 'Coach', () => schoolLines({
         materials: 'Make the plan first. The beanbags can wait, and an orange squishy is their prize.',
-        gear: 'Coats from the cloakroom. Spades from the shed outside.',
-        teacher: 'Peek-a-book at the cupboard, then come back and throw beanbags.',
+        coats: 'Step 1 is coats from the cloakroom. The beanbags can wait.',
+        spades: 'Step 2 is two spades from the shed outside.',
         dig: 'The sandpit is outside. That is the tunnel.',
         leave: 'Four beanbags in the hoop. An orange squishy is the prize.'
       }), {shirt:'#ff5a5a', pants:'#2a2a2a', hair:'#222'}),
@@ -3391,8 +3395,8 @@ function buildRooms() {
       }),
       talker('dot', 220, 250, 'adult', 'Miss Dot', () => schoolLines({
         materials: 'Paper and pencils make the plan. The painting can wait.',
-        gear: 'Step 1 is still the coats and the spades.',
-        teacher: 'Step 2 is Ms Maple and the cupboard door.',
+        coats: 'Step 1 is both coats from the cloakroom.',
+        spades: 'Step 2 is two spades from the shed.',
         dig: 'Step 3 is digging the sandpit tunnel.',
         leave: 'Find the square that does not match. A red squishy is drying behind it.'
       }), {shirt:'#fff3c4', pants:'#555', hair:'#222', beret:'#c23b3b'}),
@@ -3407,8 +3411,8 @@ function buildRooms() {
       rareChest('goldchest', 560, 240, 'gold', 'Bells', openBells),
       talker('tune', 240, 250, 'adult', 'Mr Tune', () => schoolLines({
         materials: 'The plan comes before the bells. Paper and pencils first.',
-        gear: 'Coats and spades are Step 1. The gold chest can wait.',
-        teacher: 'Peek-a-book is Step 2, at the cupboard in the corridor.',
+        coats: 'Step 1 is the coats. The gold chest can wait.',
+        spades: 'Step 2 is the spades from the shed.',
         dig: 'The sandpit tunnel is Step 3.',
         leave: 'Tap the animal that shines. The gold chest opens if you keep up.'
       }), {shirt:'#7a4ad0', pants:'#2a2040', hair:'#111'}),
@@ -3461,8 +3465,8 @@ function buildRooms() {
       }, [{x:780, y:215}, {x:812, y:242}]),
       talker('care', 360, 190, 'adult', 'Caretaker', () => schoolLines({
         materials: 'Draw the plan before you touch my shed.',
-        gear: 'The shed key is in lost property. Inside, take the two spades. Coats are back in the cloakroom.',
-        teacher: 'Spades can wait in the bag. Step 2 is the cupboard.',
+        coats: 'Step 1 is the coats in the cloakroom. My shed is step 2.',
+        spades: 'Step 2: the shed key is in lost property. Inside, take the two spades.',
         dig: 'The sandpit is ready. Dig down, across under the playground, and up.',
         leave: 'The hole is open. Crawl through when the squishies are packed.'
       }), {shirt:'#4aa35a', pants:'#3d3428', hair:'#333', cap:'#3d3428'}),
@@ -4015,7 +4019,7 @@ function logicTest() {
   const prev = state;
   const errors = [];
   state = blankState('ava');
-  if (digBlockers().length < 4) errors.push('dig should block');
+  if (digBlockers().join('|') !== 'the plan|both grown-up coats|two spades') errors.push('dig should block ' + digBlockers().join('|'));
   state.items.plan = true;
   state.items.coatMaple = true;
   state.items.coatButton = true;
