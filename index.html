@@ -2799,6 +2799,62 @@ function drawToy(g, x, y, kind, sc) {
   }
   g.restore();
 }
+function drawFoodCounter(g, x, y) {
+  roundRect(g, x - 78, y - 10, 156, 48, 8);
+  fillStroke(g, '#c9843a');
+  g.fillStyle = '#e7b56a';
+  g.fillRect(x - 70, y - 6, 140, 8);
+  g.strokeStyle = '#9fd4ff';
+  g.lineWidth = 4;
+  g.beginPath();
+  g.moveTo(x - 66, y - 28);
+  g.lineTo(x + 66, y - 28);
+  g.moveTo(x - 66, y - 28);
+  g.lineTo(x - 66, y - 8);
+  g.moveTo(x + 66, y - 28);
+  g.lineTo(x + 66, y - 8);
+  g.stroke();
+  g.fillStyle = '#fff';
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 2;
+  roundRect(g, x - 64, y + 4, 128, 26, 6);
+  g.fill();
+  g.stroke();
+  g.fillStyle = '#e23b3b';
+  g.beginPath(); g.arc(x - 42, y + 17, 8, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.strokeStyle = '#2f8a3a';
+  g.lineWidth = 2;
+  g.beginPath(); g.moveTo(x - 42, y + 10); g.quadraticCurveTo(x - 36, y + 6, x - 34, y + 11); g.stroke();
+  g.fillStyle = '#fff';
+  g.strokeStyle = '#3a2a22';
+  roundRect(g, x - 22, y + 8, 16, 18, 2); g.fill(); g.stroke();
+  g.fillStyle = '#4aa8ff';
+  g.fillRect(x - 20, y + 13, 12, 6);
+  g.fillStyle = '#e7b56a';
+  g.beginPath();
+  g.moveTo(x + 10, y + 8);
+  g.lineTo(x + 28, y + 26);
+  g.lineTo(x + 2, y + 26);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.fillStyle = '#e23b3b';
+  g.beginPath(); g.arc(x + 14, y + 18, 2.2, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(x + 20, y + 20, 2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ff9a3c';
+  g.beginPath();
+  g.moveTo(x + 40, y + 10);
+  g.lineTo(x + 54, y + 26);
+  g.lineTo(x + 34, y + 22);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.strokeStyle = '#2f8a3a';
+  g.beginPath();
+  g.moveTo(x + 40, y + 10); g.lineTo(x + 36, y + 5);
+  g.moveTo(x + 40, y + 10); g.lineTo(x + 44, y + 5);
+  g.stroke();
+}
 function drawCafeCounter(g, x, y) {
   roundRect(g, x - 86, y - 6, 156, 40, 8);
   fillStroke(g, '#c9843a');
@@ -3654,7 +3710,9 @@ function buildRooms() {
     spawns:{default:{x:480, y:340}},
     entities:[
       blocker('counter', 80, 70, 800, 50, '#e7d3b0'),
-      station('lunch', 620, 220, 'Lunch game', 'purple', openFoods),
+      station('lunch', 620, 220, 'Lunch game', 'purple', openFoods, drawFoodCounter, [
+        {x:560, y:230}, {x:620, y:230}, {x:680, y:230}, {x:620, y:200}
+      ]),
       talker('lucy', 400, 220, 'adult', 'Lunch Lucy', () => schoolLines({
         materials: 'After the plan, come back. Foods ride past and the purple squishy is the prize.',
         coats: 'Step 1 is the cloakroom coats. Lunch can wait.',
