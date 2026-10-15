@@ -270,14 +270,14 @@ const TROUSERS = '#1a1a1a';
 const SHIRT = '#ffffff';
 const KIDS = {
   ava: {name:'Ava', age:7, scale:1, hair:'#ffd24a', outfit:UNIFORM, shoe:TROUSERS, style:'pony', band:'#ff5a7a', blurb:'Age 7. Blonde ponytail. Likes making plans.'},
-  darcey: {name:'Darcey', age:7, scale:1.16, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, style:'pony', band:'#ffd24a', blurb:'Age 7. Taller. Brown ponytail. Fast on the swings.'},
+  darcey: {name:'Darcey', age:7, scale:1.16, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, style:'plaits', band:'#ffd24a', blurb:'Age 7. Taller. Brown plaits. Fast on the swings.'},
   axel: {name:'Axel', age:4, scale:0.78, hair:'#ffe07a', outfit:UNIFORM, shorts:TROUSERS, shoe:TROUSERS, style:'buzz', blurb:'Age 4. Blond buzz cut. Biscuit expert.'},
   hallie: {name:'Hallie', age:4, scale:0.8, hair:'#6b3a22', outfit:UNIFORM, shoe:TROUSERS, style:'pigtails', blurb:'Age 4. Brown pigtails. Friend of every duck.'},
   finn: {name:'Finn', age:7, scale:0.92, hair:'#e25822', outfit:UNIFORM, shorts:TROUSERS, shoe:TROUSERS, style:'buzz', blurb:''}
 };
 const PAIRS = [
   {ids:['ava','axel'], label:'Ava & Axel', coat:'#7a4a28', coatDark:'#5c3518', topHair:'#ffe07a', topStyle:'buzz', lowHair:'#ffd24a', lowStyle:'pony', little:'#f4f4f4', big:'#ff5a7a'},
-  {ids:['darcey','hallie'], label:'Darcey & Hallie', coat:'#2c3d78', coatDark:'#1c2858', topHair:'#6b3a22', topStyle:'pigtails', lowHair:'#6b3a22', lowStyle:'pony', little:'#ff7ab0', big:'#3a2a6a'}
+  {ids:['darcey','hallie'], label:'Darcey & Hallie', coat:'#2c3d78', coatDark:'#1c2858', topHair:'#6b3a22', topStyle:'pigtails', lowHair:'#6b3a22', lowStyle:'plaits', little:'#ff7ab0', big:'#3a2a6a'}
 ];
 const SKIN = '#ffc8a8';
 
@@ -545,6 +545,18 @@ function drawStar(g, x, y, r, color) {
   g.stroke();
   g.restore();
 }
+function drawPlait(g, x, y, hair, band, count, step) {
+  for (let i = 0; i < count; i++) {
+    g.fillStyle = i % 2 ? '#4a2416' : hair;
+    g.beginPath();
+    g.ellipse(x + (i % 2 ? step * 0.45 : -step * 0.45), y + i * step, step * 0.85, step * 0.62, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.fillStyle = band || '#ffd24a';
+  g.beginPath();
+  g.ellipse(x, y, step * 0.95, step * 0.42, 0, 0, Math.PI * 2);
+  g.fill();
+}
 function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader) {
   const k = KIDS[id];
   const s = (k.scale || 1) * (extra || 1);
@@ -594,6 +606,10 @@ function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader) {
   g.fillStyle = k.hair;
   if (facing === 'up') {
     g.beginPath(); g.arc(0, -58, 14, 0, Math.PI * 2); g.fill();
+    if (k.style === 'plaits') {
+      drawPlait(g, -14, -46, k.hair, k.band, 5, 6);
+      drawPlait(g, 14, -46, k.hair, k.band, 5, 6);
+    }
   } else if (k.style === 'buzz') {
     g.beginPath(); g.arc(0, -61, 14, Math.PI, 0); g.fill();
     g.fillStyle = SKIN;
@@ -606,6 +622,10 @@ function drawKid(g, x, y, id, facing, bob, extra, showName, isLeader) {
     g.fillStyle = '#ff7ab0';
     g.beginPath(); g.arc(-16, -50, 2.2, 0, Math.PI * 2); g.fill();
     g.beginPath(); g.arc(16, -50, 2.2, 0, Math.PI * 2); g.fill();
+  } else if (k.style === 'plaits') {
+    g.beginPath(); g.arc(0, -62, 14, Math.PI * 1.02, Math.PI * 1.98); g.fill();
+    drawPlait(g, -15, -50, k.hair, k.band, 5, 6);
+    drawPlait(g, 15, -50, k.hair, k.band, 5, 6);
   } else {
     g.beginPath(); g.arc(0, -62, 14, Math.PI * 1.02, Math.PI * 1.98); g.fill();
     g.beginPath(); g.ellipse(16, -46, 6, 13, 0.45, 0, Math.PI * 2); g.fill();
@@ -642,6 +662,10 @@ function drawStackFace(g, y, hair, style) {
     g.fillStyle = '#ff7ab0';
     g.beginPath(); g.arc(-15, y + 2, 2, 0, 7); g.fill();
     g.beginPath(); g.arc(15, y + 2, 2, 0, 7); g.fill();
+  } else if (style === 'plaits') {
+    g.beginPath(); g.arc(0, y - 3, 12, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+    drawPlait(g, -12, y + 2, hair, '#ffd24a', 3, 5);
+    drawPlait(g, 12, y + 2, hair, '#ffd24a', 3, 5);
   } else {
     g.beginPath(); g.arc(0, y - 3, 12, Math.PI * 1.05, Math.PI * 1.95); g.fill();
     g.beginPath(); g.ellipse(14, y + 8, 5, 10, 0.45, 0, 7); g.fill();
