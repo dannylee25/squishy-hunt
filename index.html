@@ -1261,6 +1261,12 @@ function digBlockers() {
 function mexicoReady() {
   return !!state.flags.securityPassed && countSet('air') >= 7;
 }
+function landsideLeft() {
+  const left = [];
+  if (!state.squishies.teal) left.push('the teal squishy at check-in');
+  if (!state.squishies.rose) left.push('the rose squishy on the baggage belt');
+  return left;
+}
 function objective() {
   if (!state) return '';
   if (state.level === 1) {
@@ -1282,10 +1288,8 @@ function objective() {
     return 'Board the bus. The front sign says AIRPORT.';
   }
   if (!state.flags.securityPassed) {
-    if (!state.flags.disguised) {
-      if (!state.squishies.teal || !state.squishies.rose) return 'Check-in, baggage belt, then the photo booth coats';
-      return 'Photo booth: little ones on shoulders, then the coats';
-    }
+    if (landsideLeft().length) return 'Squishies before security: check-in and the baggage belt';
+    if (!state.flags.disguised) return 'Photo booth: little ones on shoulders, then the coats';
     return 'Walk through security in the tall coats';
   }
   if (countSet('air') < 7) return 'Collect all 7 airport squishies (' + countSet('air') + '/7)';
@@ -1312,10 +1316,12 @@ function goalList() {
     return rows;
   }
   const rows = [
+    done('Teal squishy at check-in', state.squishies.teal),
+    done('Rose squishy on the baggage belt', state.squishies.rose),
     done('Tall-coat disguise', state.flags.disguised),
     done('Through security', state.flags.securityPassed)
   ];
-  SQUISHIES.filter(s => s.set === 'air').forEach(s => rows.push(done(s.name + (s.rare ? ' (rare)' : ''), state.squishies[s.id])));
+  SQUISHIES.filter(s => s.set === 'air' && s.id !== 'teal' && s.id !== 'rose').forEach(s => rows.push(done(s.name + (s.rare ? ' (rare)' : ''), state.squishies[s.id])));
   rows.push(done('Plane to Mexico', state.unlocked >= 4 && state.level > 3));
   return rows;
 }
@@ -2851,6 +2857,14 @@ function trySecurity() {
     say([{name:'Guard', text:'Those coats already came through the scanner. It only works once.'}]);
     return;
   }
+  const left = landsideLeft();
+  if (left.length) {
+    const text = left.length === 2
+      ? 'Not yet. Check-in has a teal squishy and the baggage belt has a rose one. Bring both before you come through.'
+      : 'Not yet. You still need ' + left[0] + '.';
+    say([{name:'Guard', text}]);
+    return;
+  }
   if (!state.flags.disguised) {
     say([{name:'Guard', text:'Hello! The scanner is for grown-ups. I can see small knees. The photo booth and the big coats might help.'}]);
     return;
@@ -3568,7 +3582,7 @@ function buildRooms() {
   const depSpawns = {default:{x:480, y:340}, bus:{x:480, y:400}};
   const depEnts = [
     talker('info', 480, 260, 'adult', 'Info', [
-      'Check-in and the baggage belt are on this side of security.',
+      'Check-in and the baggage belt are on this side of security. Collect both squishies before the scanner.',
       'The photo booth is where small people become tall coats.',
       'After security, the shops and Gate 4 are airside.'
     ], {shirt:'#f2f2f2', pants:'#2c3e6b', hair:'#6b3a22'}),
@@ -3684,13 +3698,15 @@ function buildRooms() {
       talker('guard', 120, 300, 'adult', 'Guard', () => state.flags.securityPassed
         ? ['You are through. The scanner will not take the same coats twice.']
         : state.flags.disguised
-          ? ['Tall coats. Tap the scanner. Once only.']
+          ? (landsideLeft().length
+            ? ['Tall coats, but this side of the airport still has squishies.', 'Check-in and the baggage belt first, then the scanner.']
+            : ['Tall coats. Tap the scanner. Once only.'])
           : ['Hello, small travellers! This scanner is for grown-ups.', 'The photo booth is back in the hall.'],
         {shirt:'#2c4a8a', pants:'#1c2c55', hair:'#222', hat:'#1c2c55', badge:true}),
       prop({
         id:'arch', x:390, y:270, range:78,
         prompt(){ return state.flags.securityPassed ? 'Scanned' : 'Scanner'; },
-        sparkle(){ return !!state.flags.disguised && !state.flags.securityPassed; },
+        sparkle(){ return !landsideLeft().length && !!state.flags.disguised && !state.flags.securityPassed; },
         use: trySecurity,
         draw(g){ drawLabel(g, 390, 250, 'Scanner'); }
       }),
@@ -3898,6 +3914,12 @@ function logicTest() {
   if (digBlockers().length) errors.push('dig should open ' + digBlockers().join('|'));
   state.level = 3;
   if (mexicoReady()) errors.push('mexico early');
+  state.flags.disguised = true;
+  if (!landsideLeft().length) errors.push('landside squishies should block security');
+  state.squishies.teal = true;
+  if (landsideLeft().length !== 1) errors.push('rose should still be waiting');
+  state.squishies.rose = true;
+  if (landsideLeft().length) errors.push('landside should be clear');
   state.flags.securityPassed = true;
   grantSet('air');
   if (!mexicoReady()) errors.push('mexico late');
