@@ -3251,14 +3251,16 @@ function buildRooms() {
             const row = el('div', {class:'choices'});
             ['Strawberry','Chocolate','Lemon','Mint'].forEach(flavor => {
               const b = el('button', {class:'choice'}, flavor);
-              b.addEventListener('click', () => {
+              listenDown(b, e => {
+                if (e && e.cancelable) e.preventDefault();
                 closeModal();
                 addStar('starIce');
                 say([
-                  {name:'Ivy', text:flavor + '! A fine choice.'},
-                  {name:'Ivy', text:'The lilac squishy hides in the middle of the hedge maze. Watch out for dead ends.'}
+                  {name:'Ivy', text:flavor + '!'},
+                  {name:'Ivy', text:'A star sticker was in the bottom of the cone.'}
                 ]);
               });
+              row.append(b);
             });
             card.append(row);
             addBack(card);
@@ -3787,7 +3789,8 @@ function onTap(e) {
   for (const ent of room.entities) {
     const p = ent.prompt && ent.prompt();
     if (!p) continue;
-    const d = Math.hypot(ent.x - wpt.x, ent.y - wpt.y);
+    let d = Math.hypot(ent.x - wpt.x, ent.y - wpt.y);
+    if (ent.sparkle && ent.sparkle()) d = Math.min(d, Math.hypot(ent.x - wpt.x, ent.y - 46 - wpt.y));
     if (d < bd) { best = ent; bd = d; }
   }
   if (best) {
