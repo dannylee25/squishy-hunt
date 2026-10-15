@@ -779,34 +779,89 @@ function drawSquishy(g, x, y, id, sc) {
   if (s.rare) drawStar(g, 0, -22, 7, '#fff4b0');
   g.restore();
 }
-function drawHedgeGate(g, x, y) {
-  g.fillStyle = '#1e6b34';
-  roundRect(g, x - 36, y - 42, 18, 62, 6); g.fill();
-  roundRect(g, x + 18, y - 42, 18, 62, 6); g.fill();
-  g.fillStyle = '#49b864';
-  g.fillRect(x - 32, y - 40, 10, 10);
-  g.fillRect(x + 22, y - 40, 10, 10);
-  g.strokeStyle = '#c9843a';
-  g.lineWidth = 5;
+function drawGardenGate(g, x, y, label) {
+  g.fillStyle = 'rgba(0,0,0,.14)';
+  g.beginPath();
+  g.ellipse(x, y + 32, 38, 6, 0, 0, Math.PI * 2);
+  g.fill();
+  function post(px) {
+    g.beginPath();
+    g.moveTo(px - 2, y - 40);
+    g.lineTo(px + 6, y - 52);
+    g.lineTo(px + 14, y - 40);
+    g.closePath();
+    fillStroke(g, '#8a5a32');
+    roundRect(g, px, y - 40, 12, 70, 2);
+    fillStroke(g, '#6b4423');
+  }
+  post(x - 34);
+  post(x + 22);
+  g.strokeStyle = '#6b4423';
+  g.lineWidth = 4;
   g.lineCap = 'round';
   g.beginPath();
-  g.moveTo(x - 16, y - 24); g.lineTo(x + 16, y - 8);
-  g.moveTo(x - 16, y - 8); g.lineTo(x + 16, y + 8);
+  g.moveTo(x - 22, y - 36);
+  g.quadraticCurveTo(x, y - 50, x + 22, y - 36);
   g.stroke();
-  g.fillStyle = '#6b4423';
-  g.fillRect(x - 38, y + 16, 20, 8);
-  g.fillRect(x + 18, y + 16, 20, 8);
+  for (let i = 0; i < 4; i++) {
+    const px = x - 18 + i * 10;
+    g.beginPath();
+    g.moveTo(px, y - 30);
+    g.lineTo(px + 3.5, y - 40);
+    g.lineTo(px + 7, y - 30);
+    g.closePath();
+    fillStroke(g, '#f6e7c4');
+    roundRect(g, px, y - 30, 7, 52, 1);
+    fillStroke(g, '#f4e2b0');
+  }
+  roundRect(g, x - 20, y - 22, 40, 6, 2);
+  fillStroke(g, '#e2b15c');
+  roundRect(g, x - 20, y + 8, 40, 6, 2);
+  fillStroke(g, '#e2b15c');
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 3;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(x + 16, y - 2);
+  g.lineTo(x + 28, y - 2);
+  g.stroke();
+  g.fillStyle = '#ffd23a';
+  g.beginPath();
+  g.arc(x + 26, y - 2, 3, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#3a2a22';
+  g.lineWidth = 1.5;
+  g.stroke();
+  [[-40, '#ff7ab0'], [40, '#ffe14a']].forEach(([dx, col]) => {
+    const fx = x + dx;
+    g.strokeStyle = '#1e6b34';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.moveTo(fx, y + 18);
+    g.lineTo(fx, y + 30);
+    g.stroke();
+    g.fillStyle = col;
+    g.beginPath();
+    g.arc(fx, y + 16, 5, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#3a2a22';
+    g.lineWidth = 1.5;
+    g.stroke();
+  });
+  if (label) drawLabel(g, x, y + 50, label);
 }
-function hedgeGate(id, x, y, label, to, spawn) {
+function gardenGate(id, x, y, label, to, spawn) {
   return prop({
-    id, x, y, to, spawn, range: 70,
-    spots: [{x, y: y - 52}, {x: x - 18, y: y + 10}, {x: x + 18, y: y + 10}],
+    id, x, y, to, spawn, range: 74,
+    spots: [
+      {x, y: y - 24},
+      {x: x - 28, y: y + 6},
+      {x: x + 28, y: y + 6},
+      {x, y: y + 50}
+    ],
     prompt: () => label,
     use() { enter(to, spawn); },
-    draw(g) {
-      drawHedgeGate(g, x, y);
-      drawLabel(g, x, y - 58, label);
-    }
+    draw(g) { drawGardenGate(g, x, y, label); }
   });
 }
 function drawDoor(g, x, y, label) {
@@ -818,7 +873,7 @@ function drawDoor(g, x, y, label) {
   roundRect(g, x - 12, y - 26, 24, 18, 3); g.fill();
   g.fillStyle = '#ffd23a';
   g.beginPath(); g.arc(x + 12, y + 6, 3.5, 0, 7); g.fill();
-  drawLabel(g, x, y - 50, label);
+  drawLabel(g, x, y + 52, label);
 }
 function drawNoKidsSign(g, x, y) {
   g.font = '800 16px Trebuchet MS, sans-serif';
@@ -1021,7 +1076,7 @@ function R(id, name, opts) {
 function door(id, x, y, label, to, spawn) {
   return prop({
     id, x, y, to, spawn, range:74,
-    spots: [{x, y: y - 46}, {x, y: y + 22}],
+    spots: [{x, y: y - 16}, {x, y: y + 16}, {x, y: y + 52}],
     prompt: () => label,
     use() { enter(to, spawn); },
     draw(g) { drawDoor(g, x, y, label); }
@@ -3235,7 +3290,7 @@ function buildRooms() {
       },
       draw(g){ roundRect(g, 96, 270, 48, 36, 6); fillStroke(g, '#c9843a'); drawLabel(g, 120, 250, 'Lost box'); }
     }),
-    talker('oak', 500, 270, 'adult', 'Mr Oak', () => schoolLines({
+      talker('oak', 500, 340, 'adult', 'Mr Oak', () => schoolLines({
       materials: 'Paper is in the library. Pencils are in the classroom. The notice has a map.',
       coats: 'Step 1: both coats are in the cloakroom.',
       spades: 'Step 2: the shed key is extra shiny, in the lost-property box.',
@@ -3433,7 +3488,7 @@ function buildRooms() {
       }
     },
     entities:[
-      door('school', 480, 96, 'School', 'corridor', 'playground'),
+      door('school', 250, 320, 'School', 'corridor', 'playground'),
       prop({
         id:'sand', x:500, y:400, range:90,
         spots: [
@@ -3604,7 +3659,7 @@ function buildRooms() {
         }});
         return bus;
       })(),
-      door('to-pond', 870, 140, 'Pond', 'pond', 'default'),
+      gardenGate('to-pond', 870, 450, 'Pond', 'pond', 'default'),
       sign('pmap', 340, 130, 'Map', 'Swings and rides are here. Ducks, the maze and the treehouse are through the pond gate.', {color:'#fff'})
     ]
   }));
@@ -3636,13 +3691,13 @@ function buildRooms() {
         use(){ addStar('starPicnic'); say([{name:'Hallie', text:'Apples for everyone! There was a star sticker under the blanket.'}]); },
         draw(g){ g.fillStyle = '#e23b3b'; roundRect(g, 460, 430, 80, 28, 6); g.fill(); drawLabel(g, 500, 420, 'Picnic'); }
       }),
-      hedgeGate('to-maze', 700, 400, 'Maze', 'maze', 'default'),
+      gardenGate('to-maze', 700, 400, 'Maze', 'maze', 'default'),
       talker('warden', 800, 400, 'adult', 'Robin', [
         'I guard the maze gate.',
         'The lilac squishy is in the very middle. Some paths turn back.'
       ], {shirt:'#2f8f45', pants:'#245c38', hair:'#5a3a22', hat:'#d8c07a'}),
-      door('to-tree', 860, 180, 'Treehouse', 'treehouse', 'default'),
-      door('to-lawn', 160, 460, 'Park', 'lawn', 'pond')
+      gardenGate('to-tree', 860, 248, 'Treehouse', 'treehouse', 'default'),
+      gardenGate('to-lawn', 160, 460, 'Park', 'lawn', 'pond')
     ]
   }));
 
@@ -3670,7 +3725,7 @@ function buildRooms() {
         'This gate goes back to the pond.',
         'Keep going until the hedges open in the middle.'
       ], {shirt:'#2f8f45', pants:'#245c38', hair:'#5a3a22', hat:'#d8c07a'}),
-      hedgeGate('mout', 144, 508, 'Pond', 'pond', 'maze')
+      gardenGate('mout', 144, 450, 'Pond', 'pond', 'maze')
     ]
   }));
 
@@ -3821,7 +3876,7 @@ function buildRooms() {
         use: trySecurity,
         draw(g){ drawLabel(g, 465, 210, 'Scanner'); }
       }),
-      door('back-sec', 160, 490, 'Hall', 'departures', 'security'),
+      door('back-sec', 160, 440, 'Hall', 'departures', 'security'),
       prop({
         id:'board', x:860, y:240, range:84,
         spots: [{x:800, y:240}, {x:920, y:240}],
@@ -3837,18 +3892,18 @@ function buildRooms() {
         return ['Squishies aboard: ' + n + ' / 7. The sign flashes when we have them all.'];
       }, {shirt:'#1d3358', pants:'#1d3358', hair:'#ccc', hat:'#1d3358'}),
       prop({
-        id:'piano', x:700, y:430, range:70,
-        spots: [{x:680, y:416}, {x:720, y:416}, {x:700, y:390}],
+        id:'piano', x:700, y:350, range:70,
+        spots: [{x:680, y:336}, {x:720, y:336}, {x:700, y:310}],
         prompt(){ return 'Piano'; },
         sparkle(){ return !state.flags.starPiano; },
         use: openPiano,
-        draw(g){ roundRect(g, 660, 400, 80, 36, 6); fillStroke(g, '#222'); drawLabel(g, 700, 390, 'Piano'); }
+        draw(g){ roundRect(g, 660, 320, 80, 36, 6); fillStroke(g, '#222'); drawLabel(g, 700, 310, 'Piano'); }
       }),
-      door('to-duty', 560, 490, 'Shop', 'duty', 'default'),
-      door('to-cafe', 700, 490, 'Cafe', 'cafe', 'default'),
-      door('to-play', 840, 490, 'Play', 'playzone', 'default'),
-      door('to-family', 900, 400, 'Toilets', 'family', 'default'),
-      door('to-spot', 930, 470, 'Planes', 'observation', 'default')
+      door('to-duty', 560, 440, 'Shop', 'duty', 'default'),
+      door('to-cafe', 700, 440, 'Cafe', 'cafe', 'default'),
+      door('to-play', 840, 440, 'Play', 'playzone', 'default'),
+      door('to-family', 900, 330, 'Toilets', 'family', 'default'),
+      door('to-spot', 930, 440, 'Planes', 'observation', 'default')
     ]
   }));
   rooms.security.solids.push({x:430, y:0, w:70, h:190}, {x:430, y:360, w:70, h:180});
