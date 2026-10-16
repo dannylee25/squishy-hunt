@@ -9,9 +9,11 @@
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { margin:0; height:100%; background:#6eb6ee; color:var(--ink);
     font-family:"Trebuchet MS","Comic Sans MS","Chalkboard SE","Segoe UI",sans-serif;
+    position:fixed; inset:0; width:100%; overflow:hidden;
     overscroll-behavior:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  body { overflow:hidden; user-select:none; }
-  #app { height:100%; height:var(--app-h, 100%); display:flex; flex-direction:column; touch-action:none; }
+  body { user-select:none; }
+  #app { position:fixed; left:0; top:0; width:100%; height:100%; height:var(--app-h, 100%);
+    display:flex; flex-direction:column; touch-action:none; }
   #stage { flex:1; min-height:0; position:relative; background:#8ecbff; }
   #c { display:block; width:100%; height:100%; touch-action:none; }
   .faces canvas { width:120px; height:130px; }
@@ -51,10 +53,10 @@
   @media (pointer: coarse) {
     #midbtns button { min-width:104px; height:64px; font-size:18px; }
   }
-  #modal { position:fixed; inset:0; z-index:30; background:rgba(24,40,70,.4); display:flex; align-items:center; justify-content:center; padding:12px; }
+  #modal { position:fixed; top:0; left:0; width:100%; height:100%; height:var(--app-h, 100%); z-index:30; background:rgba(24,40,70,.4); display:flex; align-items:center; justify-content:center; padding:12px; overscroll-behavior:none; }
   #modal.hidden { display:none; }
   .card { background:var(--paper); border:4px solid var(--ink); border-radius:24px; max-width:920px; width:min(920px,100%);
-    max-height:min(92dvh,920px); overflow:auto; padding:16px 16px 20px; touch-action:pan-y; box-shadow:0 10px 0 rgba(0,0,0,.15); }
+    max-height:min(92dvh,920px); overflow:auto; overscroll-behavior:contain; padding:16px 16px 20px; touch-action:pan-y; box-shadow:0 10px 0 rgba(0,0,0,.15); }
   .card h1, .card h2 { margin:4px 0 8px; text-align:center; }
   .card p { font-size:18px; line-height:1.4; margin:8px 0; }
   .card .row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:12px 0; }
@@ -89,7 +91,7 @@
   .skybox, .pondbox, .pit { position:relative; height:180px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#b9e6ff; margin:8px 0; }
   .pondbox { background:#7ec8ea; }
   .pit { background:#f0d59a; height:220px; }
-  .dig-scene { width:100%; max-width:860px; height:auto; display:block; margin:8px auto; border:3px solid var(--ink); border-radius:16px; background:#8ecbff; }
+  .dig-scene { width:100%; max-width:860px; height:auto; aspect-ratio:860 / 420; max-height:46dvh; display:block; margin:8px auto; border:3px solid var(--ink); border-radius:16px; background:#8ecbff; object-fit:contain; }
   .card > button.dig-go { min-width:220px; min-height:84px; font-size:32px; }
   .slide-stage { position:relative; height:260px; overflow:hidden; border:3px solid var(--ink); border-radius:16px; background:#d7f3ff; margin:8px 0; touch-action:manipulation; }
   .slide-stage.coral { background:#ffe4d8; }
@@ -424,11 +426,21 @@ function showCard(build) {
 }
 function closeModal() {
   cleanupMini();
+  const focused = document.activeElement;
+  if (focused && focused.blur && focused !== document.body) focused.blur();
   modalOpen = false;
   const modal = document.getElementById('modal');
   modal.classList.remove('ending');
   modal.classList.add('hidden');
   modal.replaceChildren();
+  settleView();
+}
+function settleView() {
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  fitScreen();
+  requestAnimationFrame(() => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); fitScreen(); });
+  setTimeout(fitScreen, 120);
+  setTimeout(fitScreen, 400);
 }
 function addBack(card, label) {
   const b = el('button', {class:'ghost'}, label || 'Back');
@@ -2786,7 +2798,7 @@ function openDig() {
     if (progress >= 1 && !won) {
       won = true;
       btn.disabled = true;
-      succeed(btn, () => {
+      succeed(status, () => {
         state.flags.tunnelOpen = true;
         save();
         closeModal();
@@ -5011,9 +5023,27 @@ function render() {
   else renderAttract(g, cssW, cssH);
   updateHud();
 }
+let lastFit = '';
 function fitScreen() {
-  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight || 0;
-  if (h) document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
+  const vv = window.visualViewport;
+  const h = Math.round((vv && vv.height) || window.innerHeight || 0);
+  const w = Math.round((vv && vv.width) || window.innerWidth || 0);
+  const top = Math.round(vv ? vv.offsetTop : 0);
+  const left = Math.round(vv ? vv.offsetLeft : 0);
+  const stage = document.getElementById('stage');
+  const box = stage ? stage.getBoundingClientRect() : {width:0, height:0};
+  const key = [w, h, top, left, Math.round(box.width), Math.round(box.height)].join(',');
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  if (key === lastFit) return;
+  lastFit = key;
+  if (h) document.documentElement.style.setProperty('--app-h', h + 'px');
+  [document.getElementById('app'), document.getElementById('modal')].forEach(node => {
+    if (!node) return;
+    node.style.top = top + 'px';
+    node.style.left = left + 'px';
+    if (w) node.style.width = w + 'px';
+    if (h) node.style.height = h + 'px';
+  });
   resize();
 }
 function resize() {
@@ -5078,9 +5108,13 @@ function bind() {
     document.getElementById(id).addEventListener('click', () => { if (mode === 'play') openAlbum(); });
   });
   window.addEventListener('resize', fitScreen);
-  window.addEventListener('orientationchange', () => setTimeout(fitScreen, 200));
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', fitScreen);
-  if (window.ResizeObserver) new ResizeObserver(resize).observe(document.getElementById('stage'));
+  window.addEventListener('orientationchange', () => { setTimeout(fitScreen, 50); setTimeout(fitScreen, 250); setTimeout(fitScreen, 600); });
+  window.addEventListener('pageshow', fitScreen);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitScreen);
+    window.visualViewport.addEventListener('scroll', fitScreen);
+  }
+  if (window.ResizeObserver) new ResizeObserver(fitScreen).observe(document.getElementById('stage'));
 }
 function launchShot() {
   state = blankState(params.get('leader') || 'ava');
